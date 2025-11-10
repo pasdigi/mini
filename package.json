@@ -1,0 +1,17 @@
+{
+  "name": "cf-hono-commerce",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:manifest": "node ./scripts/generate-manifest.js",
+    "build": "npm run build:manifest",
+    "dev": "npm run build:manifest && wrangler pages dev public",
+    "deploy": "npm run build && wrangler pages deploy public"
+  },
+  "dependencies": {
+    "hono": "^4.4.10"
+  },
+  "devDependencies": {
+    "wrangler": "^3.60.3"
+  }
+}
