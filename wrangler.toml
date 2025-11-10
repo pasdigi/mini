@@ -9,11 +9,11 @@ pages_build_output_dir = "public"
 binding = "DB"
 database_name = "mini"
 database_id = "7f40130d-20e3-4279-b57f-32b7e58e7b57"
-preview_database_id = "PREVIEW_DB_ID_ANDA"
 
 # --- Rahasia (Secrets) ---
 # Jalankan 'npx wrangler secret put NAMA_RAHASIA' untuk mengaturnya
 # [vars]
-# JWT_SECRET = "BantarCaringin1BantarCaringin2BantarCaringin3"
-# PASPAY_API_KEY = "API_KEY_PASPAY_ANDA"
-# PASPAY_API_URL = "https://paspay.id/api/v1"
+JWT_SECRET = "BantarCaringin1BantarCaringin2BantarCaringin3"
+PASPAY_API_KEY = "c8383c48-c36b-42fb-8a88-ade125999c1d"
+PASPAY_API_URL = "https://paspay.id/api/v1"
+PASPAY_WEBHOOK_TOKEN = "625c5da3-1e99-4368-81c2-267e642b83ab"
