@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Produk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen bg-gray-200">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-800 text-white p-4">
+            <h2 class="text-2xl font-bold mb-6">Admin Paspay</h2>
+            <nav>
+                <a href="/admin/index.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                <a href="/admin/products.html" class="block py-2.5 px-4 rounded bg-gray-700">Produk</a>
+                <a href="/admin/categories.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Kategori</a>
+                <a href="#" class="block py-2.5 px-4 rounded hover:bg-gray-700">Orders</a>
+                <a href="#" class="block py-2.5 px-4 rounded hover:bg-gray-700">Users</a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-md p-4 flex justify-between items-center">
+                <h1 class="text-2xl font-semibold text-gray-700">Manajemen Produk</h1>
+                <button id="add-new-btn" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Tambah Produk Baru</button>
+            </header>
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                
+                <!-- Daftar Produk -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipe</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="5" class="p-4 text-center text-gray-500">Memuat...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Form Produk (Hidden by default) -->
+    <div id="product-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden">
+        <div class="relative mx-auto p-6 border w-full max-w-4xl shadow-lg rounded-lg bg-white">
+            <h3 id="form-title" class="text-2xl font-semibold mb-4">Tambah Produk Baru</h3>
+            <form id="product-form" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Kolom Kiri -->
+                <div class="md:col-span-2 space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700">Nama Produk</label>
+                        <input type="text" id="name" name="name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700">Deskripsi</label>
+                        <textarea id="description" name="description" rows="5" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                    </div>
+                    
+                    <!-- Galeri -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Galeri Gambar</label>
+                        <div class="mt-1 p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                            <div id="gallery-preview" class="flex flex-wrap gap-2 mb-2">
+                                <!-- Gambar galeri akan muncul di sini -->
+                            </div>
+                            <button type="button" class="open-explorer-btn text-sm text-blue-600 hover:underline" data-target="gallery">Buka Image Explorer (Galeri)</button>
+                        </div>
+                    </div>
+
+                    <!-- Stok (Hanya untuk tipe UNIQUE) -->
+                    <div id="stock-section" class="hidden">
+                        <label for="stock_items" class="block text-sm font-medium text-gray-700">Tambah Stok Unik (Kunci Lisensi, dll)</label>
+                        <textarea id="stock_items" name="stock_items" rows="4" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Tempel satu kunci per baris"></textarea>
+                        <p class="text-xs text-gray-500">Stok yang ada tidak akan ditampilkan. Ini hanya untuk *menambah* stok baru.</p>
+                    </div>
+
+                </div>
+
+                <!-- Kolom Kanan (Sidebar) -->
+                <div class="md:col-span-1 space-y-4">
+                    <div>
+                        <label for="price" class="block text-sm font-medium text-gray-700">Harga (Rp)</label>
+                        <input type="number" id="price" name="price" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="category_id" class="block text-sm font-medium text-gray-700">Kategori</label>
+                        <select id="category_id" name="category_id" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Memuat...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="product_type" class="block text-sm font-medium text-gray-700">Tipe Produk</label>
+                        <select id="product_type" name="product_type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="STANDARD">STANDARD (Ebook, dll - Stok tak terbatas)</option>
+                            <option value="UNIQUE">UNIQUE (Kunci Lisensi - Stok terbatas)</option>
+                        </select>
+                    </div>
+                    <div id="digital-content-section">
+                        <label for="digital_content" class="block text-sm font-medium text-gray-700">Konten Digital (untuk tipe STANDARD)</label>
+                        <input type="text" id="digital_content" name="digital_content" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Link download Ebook...">
+                    </div>
+                    
+                    <!-- Featured Image -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Featured Image</label>
+                        <div class="mt-1 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                            <img id="featured-image-preview" src="https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih" class="w-full h-auto rounded-md mb-2 object-cover">
+                            <input type="hidden" id="image_url" name="image_url">
+                            <button type="button" class="open-explorer-btn text-sm text-blue-600 hover:underline" data-target="featured">Buka Image Explorer (Featured)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tombol Form -->
+                <div class="md:col-span-3 text-right space-x-2">
+                    <input type="hidden" id="product-id" value="">
+                    <button type="button" id="modal-close-btn" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300">Batal</button>
+                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Simpan Produk</button>
+                </div>
+            </form>
+            <p id="form-message" class="text-sm mt-3"></p>
+        </div>
+    </div>
+
+    <!-- Modal Image Explorer (Hidden by default) -->
+    <div id="explorer-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center hidden p-4">
+        <div class="relative p-6 w-full max-w-6xl shadow-lg rounded-lg bg-white">
+            <h3 class="text-xl font-semibold mb-4">Image Explorer</h3>
+            <p class="text-sm text-gray-600 mb-2">Menjalankan <code>/scripts/generate-manifest.js</code> untuk memperbarui daftar ini.</p>
+            <div id="explorer-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-4 h-96 overflow-y-auto border p-4 rounded-lg">
+                <!-- Gambar dari manifest.json dimuat di sini -->
+            </div>
+            <button id="explorer-close-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <script>
+        // --- URL API ---
+        const API_PRODUCTS = '/api/admin/products';
+        const API_CATEGORIES = '/api/admin/categories';
+        
+        // --- Elemen Modal Produk ---
+        const productModal = document.getElementById('product-modal');
+        const productForm = document.getElementById('product-form');
+        const formTitle = document.getElementById('form-title');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const addNewBtn = document.getElementById('add-new-btn');
+        const messageEl = document.getElementById('form-message');
+        const productIdField = document.getElementById('product-id');
+        const productTypeField = document.getElementById('product_type');
+        const stockSection = document.getElementById('stock-section');
+        const digitalContentSection = document.getElementById('digital-content-section');
+
+        // --- Elemen Modal Explorer ---
+        const explorerModal = document.getElementById('explorer-modal');
+        const explorerGrid = document.getElementById('explorer-grid');
+        const explorerCloseBtn = document.getElementById('explorer-close-btn');
+        
+        // --- Elemen Form ---
+        const categorySelect = document.getElementById('category_id');
+        const featuredImagePreview = document.getElementById('featured-image-preview');
+        const featuredImageUrlField = document.getElementById('image_url');
+        const galleryPreview = document.getElementById('gallery-preview');
+        
+        // --- State ---
+        let imageManifest = [];
+        let currentExplorerTarget = 'featured'; // 'featured' or 'gallery'
+        let currentGallery = []; // Array of URLs
+
+        // --- Fungsi Helper ---
+        function showMessage(text, isError = false) {
+            messageEl.textContent = text;
+            messageEl.className = isError ? 'text-sm mt-3 text-red-600' : 'text-sm mt-3 text-green-600';
+            setTimeout(() => messageEl.textContent = '', 4000);
+        }
+
+        function openModal() { productModal.classList.remove('hidden'); }
+        function closeModal() { 
+            productModal.classList.add('hidden');
+            productForm.reset();
+            productIdField.value = '';
+            formTitle.textContent = 'Tambah Produk Baru';
+            galleryPreview.innerHTML = '';
+            currentGallery = [];
+            featuredImagePreview.src = 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+        }
+        function openExplorer(target) {
+            currentExplorerTarget = target;
+            explorerModal.classList.remove('hidden');
+        }
+        function closeExplorer() { explorerModal.classList.add('hidden'); }
+
+        // --- 1. Load Data Awal (Kategori & Produk) ---
+        async function loadCategories() {
+            try {
+                const res = await fetch(API_CATEGORIES);
+                const { data } = await res.json();
+                categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+                if (data) {
+                    data.forEach(cat => {
+                        categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                    });
+                }
+            } catch (err) {
+                console.error('Gagal load kategori', err);
+                categorySelect.innerHTML = '<option value="">Gagal memuat</option>';
+            }
+        }
+        
+        async function loadProducts() {
+            const tableBody = document.getElementById('products-table');
+            try {
+                const res = await fetch(API_PRODUCTS);
+                const { data } = await res.json();
+                tableBody.innerHTML = '';
+                if (data && data.length > 0) {
+                    data.forEach(p => {
+                        tableBody.innerHTML += `
+                            <tr data-id="${p.id}">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${p.name}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.category_name || '-'}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.product_type}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp ${new Intl.NumberFormat('id-ID').format(p.price)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button class="text-blue-600 hover:text-blue-900 edit-btn">Edit</button>
+                                    <button class="text-red-600 hover:text-red-900 ml-4 delete-btn">Hapus</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Belum ada produk.</td></tr>';
+                }
+            } catch (err) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Gagal memuat data.</td></tr>';
+            }
+        }
+
+        // --- 2. Load Image Manifest (untuk Explorer) ---
+        async function loadImageManifest() {
+            try {
+                const res = await fetch('/image-manifest.json');
+                imageManifest = await res.json();
+                explorerGrid.innerHTML = '';
+                imageManifest.forEach(url => {
+                    explorerGrid.innerHTML += `
+                        <img src="${url}" data-url="${url}" class="w-full h-24 object-cover rounded-md cursor-pointer hover:ring-2 hover:ring-blue-500" alt="Gambar">
+                    `;
+                });
+            } catch (err) {
+                console.error('Gagal memuat image-manifest.json', err);
+                explorerGrid.innerHTML = '<p class="text-red-500 col-span-full">Gagal memuat gambar. Jalankan <code>npm run build:manifest</code>.</p>';
+            }
+        }
+
+        // --- 3. Tampilkan/Sembunyikan Opsi Form berdasarkan Tipe Produk ---
+        function toggleProductTypeFields() {
+            if (productTypeField.value === 'UNIQUE') {
+                stockSection.classList.remove('hidden');
+                digitalContentSection.classList.add('hidden');
+            } else { // STANDARD
+                stockSection.classList.add('hidden');
+                digitalContentSection.classList.remove('hidden');
+            }
+        }
+        productTypeField.addEventListener('change', toggleProductTypeFields);
+
+        // --- 4. Event Listeners (Tombol Buka/Tutup Modal) ---
+        addNewBtn.addEventListener('click', () => {
+            resetForm();
+            toggleProductTypeFields();
+            openModal();
+        });
+        modalCloseBtn.addEventListener('click', closeModal);
+        explorerCloseBtn.addEventListener('click', closeExplorer);
+        document.querySelectorAll('.open-explorer-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => openExplorer(e.target.dataset.target));
+        });
+
+        // --- 5. Logika Image Explorer (Saat gambar dipilih) ---
+        explorerGrid.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG') {
+                const url = e.target.dataset.url;
+                if (currentExplorerTarget === 'featured') {
+                    featuredImageUrlField.value = url;
+                    featuredImagePreview.src = url;
+                } else if (currentExplorerTarget === 'gallery') {
+                    if (!currentGallery.includes(url)) {
+                        currentGallery.push(url);
+                        renderGalleryPreview();
+                    }
+                }
+                closeExplorer();
+            }
+        });
+        
+        function renderGalleryPreview() {
+            galleryPreview.innerHTML = '';
+            currentGallery.forEach((url, index) => {
+                galleryPreview.innerHTML += `
+                    <div class="relative w-20 h-20">
+                        <img src="${url}" class="w-full h-full object-cover rounded-md">
+                        <button type="button" data-index="${index}" class="remove-gallery-btn absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs font-bold flex items-center justify-center">&times;</button>
+                    </div>
+                `;
+            });
+        }
+        
+        galleryPreview.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-gallery-btn')) {
+                const index = parseInt(e.target.dataset.index, 10);
+                currentGallery.splice(index, 1);
+                renderGalleryPreview();
+            }
+        });
+
+        // --- 6. Event Listeners (CRUD Aksi) ---
+        
+        // CREATE / UPDATE Produk
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = productIdField.value;
+            const formData = new FormData(productForm);
+            const data = Object.fromEntries(formData.entries());
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_PRODUCTS}/${id}` : API_PRODUCTS;
+            
+            try {
+                // 6.1 Kirim data produk utama (CREATE/UPDATE)
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error);
+                
+                const savedProductId = id || result.data.id;
+                
+                // 6.2 Kirim data Galeri
+                await fetch(`${API_PRODUCTS}/${savedProductId}/gallery`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: currentGallery })
+                });
+
+                // 6.3 Kirim Stok (jika ada)
+                const stockItems = data.stock_items.split('\n').filter(Boolean); // Pecah per baris
+                if (data.product_type === 'UNIQUE' && stockItems.length > 0) {
+                    await fetch(`${API_PRODUCTS}/${savedProductId}/stock`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stock_items: stockItems })
+                    });
+                }
+                
+                showMessage('Produk berhasil disimpan!', false);
+                closeModal();
+                loadProducts();
+            } catch (err) {
+                showMessage(`Gagal: ${err.message}`, true);
+            }
+        });
+
+        // Event Listener untuk tombol Edit dan Delete
+        document.getElementById('products-table').addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            if (!row) return;
+            const id = row.dataset.id;
+            
+            // Tombol EDIT
+            if (e.target.classList.contains('edit-btn')) {
+                try {
+                    const res = await fetch(`${API_PRODUCTS}/${id}`);
+                    const { data } = await res.json();
+                    if (!data) throw new Error('Produk tidak ditemukan');
+
+                    // Isi form
+                    formTitle.textContent = `Edit Produk: ${data.name}`;
+                    productIdField.value = data.id;
+                    productForm.querySelector('#name').value = data.name;
+                    productForm.querySelector('#description').value = data.description;
+                    productForm.querySelector('#price').value = data.price;
+                    productForm.querySelector('#category_id').value = data.category_id;
+                    productForm.querySelector('#product_type').value = data.product_type;
+                    productForm.querySelector('#digital_content').value = data.digital_content;
+                    productForm.querySelector('#image_url').value = data.image_url;
+                    featuredImagePreview.src = data.image_url || 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+                    
+                    currentGallery = data.gallery.map(img => img.image_url);
+                    renderGalleryPreview();
+                    toggleProductTypeFields();
+                    openModal();
+                } catch (err) {
+                    alert(`Gagal memuat data produk: ${err.message}`);
+                }
+            }
+            
+            // Tombol DELETE
+            if (e.target.classList.contains('delete-btn')) {
+                if (!confirm(`Yakin ingin menghapus produk ini? (Stok & Galeri juga akan terhapus)`)) return;
+
+                try {
+                    const res = await fetch(`${API_PRODUCTS}/${id}`, { method: 'DELETE' });
+                    const result = await res.json();
+                    if (!res.ok) throw new Error(result.error);
+                    showMessage(result.message, false);
+                    loadProducts();
+                } catch (err) {
+                    alert(`Gagal menghapus: ${err.message}`);
+                }
+            }
+        });
+
+        // --- 7. Inisialisasi ---
+        loadCategories();
+        loadProducts();
+        loadImageManifest();
+    </script>
+</body>
+</html>
