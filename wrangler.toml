@@ -1,0 +1,19 @@
+name = "mini-commerce"
+compatibility_date = "2024-05-10"
+pages_build_output_dir = "public"
+
+# --- Ikatan (Binding) Database D1 ---
+# Ganti "DB_NAME_ANDA" dengan nama database D1 Anda di Cloudflare
+# Ganti "PREVIEW_DB_ID_ANDA" dengan ID preview database Anda
+[[d1_databases]]
+binding = "DB"
+database_name = "mini"
+database_id = "7f40130d-20e3-4279-b57f-32b7e58e7b57"
+preview_database_id = "PREVIEW_DB_ID_ANDA"
+
+# --- Rahasia (Secrets) ---
+# Jalankan 'npx wrangler secret put NAMA_RAHASIA' untuk mengaturnya
+# [vars]
+# JWT_SECRET = "BantarCaringin1BantarCaringin2BantarCaringin3"
+# PASPAY_API_KEY = "API_KEY_PASPAY_ANDA"
+# PASPAY_API_URL = "https://paspay.id/api/v1"
