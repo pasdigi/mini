@@ -28,7 +28,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const productList = document.getElementById('product-list');
 
-            fetch('/api/shop/products')
+            fetch('/api/store/products')
                 .then(res => res.json())
                 .then(response => {
                     productList.innerHTML = ''; // Bersihkan loading
