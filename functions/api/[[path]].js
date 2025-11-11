@@ -58,7 +58,7 @@ const verifyPassword = async (password, storedHash) => {
       keyMaterial, 256 // 256 bits
     );
     const derivedHashHex = bufferToHex(derivedBits);
-    
+    
     return derivedHashHex === hashHex;
   } catch (e) {
     console.error("Kesalahan saat verifikasi password:", e.message);
@@ -134,24 +134,24 @@ const authMiddleware = async (c, next) => {
             .first();
         
         if (!user) {
-            setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
+            setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
             return c.json({ error: 'User tidak ditemukan' }, 401);
         }
         if (user.status !== 'active') {
-             setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
+             setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
              return c.json({ error: 'Akun Anda nonaktif atau di-suspend' }, 403);
         }
         
         c.set('user', user);
         await next();
     } catch (e) {
-        setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
+        setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
         return c.json({ error: 'Token tidak valid atau kedaluwarsa' }, 401);
     }
 };
 
 const adminMiddleware = async (c, next) => {
-    const user = c.get('user'); 
+    const user = c.get('user'); 
     if (user.role !== 'admin') {
         return c.json({ error: 'Akses ditolak. Memerlukan hak admin.' }, 403);
     }
@@ -194,10 +194,10 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
 
     setCookie(c, 'auth_token', token, {
         path: '/',
-        secure: true, 
+        secure: true, 
         httpOnly: true,
         sameSite: 'Lax',
-        maxAge: 60 * 60 * 24 
+        maxAge: 60 * 60 * 24 
     });
 
     return c.json({ success: true, message: 'Login berhasil' });
@@ -272,7 +272,7 @@ app.get('/store/products/:id', async (c) => {
 app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
     /** @type {Bindings} */
     const env = c.env;
-    const body = c.req.valid('json'); 
+    const body = c.req.valid('json'); 
     const now = Math.floor(Date.now() / 1000);
 
     // --- PERBAIKAN: Hanya izinkan checkout untuk produk is_active = 1 ---
@@ -288,7 +288,7 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
         // 2. Buat panggilan ke API Paspay
         const paspayPayload = {
             project_id: parseInt(c.env.PASPAY_PROJECT_ID, 10),
-            payment_channel_id: [1, 3], 
+            payment_channel_id: [1, 3], 
             amount: product.price,
             internal_ref_id: `MINI-${product.id}-${now}`,
             description: `Pembelian: ${product.name}`,
@@ -315,7 +315,7 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
         // 3. Simpan order ke database D1
         const { meta } = await env.DB.prepare(
             `INSERT INTO orders (product_id, status, paspay_reference_id, total_amount, customer_email, created_at, user_id)
-             VALUES (?, 'UNPAID', ?, ?, ?, ?, 0)` 
+             VALUES (?, 'UNPAID', ?, ?, ?, ?, 0)` 
         ).bind(
             product.id,
             paspayResult.reference_id,
@@ -342,9 +342,10 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
             }
             
             // 4b. Coba kunci stok.id spesifik, tapi pastikan masih is_sold = 0
+            // --- KOREKSI: Menghapus karakter '_' yang tersasar ---
             const { changes } = await env.DB.prepare(
                 "UPDATE product_stock_unique SET is_sold = 1, order_id = ? WHERE id = ? AND is_sold = 0"
-    _ ).bind(newOrderId, stock.id).run();
+            ).bind(newOrderId, stock.id).run();
 
             if (changes === 0) {
                 // TODO: Batalkan invoice Paspay
@@ -378,14 +379,14 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
         return c.json({ error: 'Unauthorized: Token webhook tidak valid' }, 401);
     }
 
-    const payload = c.req.valid('json'); 
+    const payload = c.req.valid('json'); 
 
     // 2. Hanya proses event 'payment.success'
     if (payload.event !== 'payment.success' || !payload.data) {
         return c.json({ success: true, message: 'Event diabaikan' }, 200);
-    }
+  Dihapus   }
     
-    const tx = payload.data; 
+    const tx = payload.data; 
 
     try {
         // 3. Cari order (Idempotency)
@@ -440,7 +441,7 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
     } catch (e) {
         console.error('Webhook Gagal: ' + e.message);
         return c.json({ error: 'Internal Server Error: ' + e.message }, 500);
-    }
+}
 });
 
 
@@ -549,7 +550,7 @@ admin.put('/products/:id', zValidator('json', productSchema), async (c) => {
 
     const { results } = await env.DB.prepare(
         `UPDATE products SET 
-         name = ?, description = ?, price = ?, product_type = ?, 
+         name = ?, description = ?, price = ?, product_type = ?,
          digital_content = ?, image_url = ?, category_id = ?, is_active = ?
          WHERE id = ? RETURNING *`
     ).bind(
@@ -604,7 +605,8 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
-  s   
+    // --- KOREKSI: Menghapus karakter 's' yang tersasar ---
+
     // Pastikan produk ada dan tipenya 'UNIQUE'
     const product = await env.DB.prepare("SELECT id FROM products WHERE id = ? AND product_type = 'UNIQUE'")
         .bind(id).first();
@@ -664,8 +666,9 @@ admin.delete('/gallery/:imageId', async (c) => {
     const env = c.env;
     const imageId = c.req.param('imageId');
     await env.DB.prepare("DELETE FROM product_images WHERE id = ?").bind(imageId).run();
-Dihapus' });
+    // --- KOREKSI: Memperbaiki sintaks return yang terpotong ---
+    return c.json({ success: true, message: 'Gambar Galeri Dihapus' });
 });
-    
+    
 // --- Ekspor Handler ---
 export const onRequest = handle(app);
