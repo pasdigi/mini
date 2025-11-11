@@ -105,12 +105,14 @@ const productSchema = z.object({
   is_active: z.boolean().optional().default(true),
 });
 
+// PERBAIKI: Ubah skema ini untuk menerima array
 const stockSchema = z.object({
-  content: z.string().min(1, 'Konten stok (lisensi/link) wajib diisi'),
+  stock_items: z.array(z.string().min(1, 'Konten stok tidak boleh kosong')),
 });
 
+// PERBAIKI: Ubah skema ini untuk menerima array
 const gallerySchema = z.object({
-  image_url: z.string().url('URL Gambar tidak valid'),
+  images: z.array(z.string().url('URL Gambar tidak valid')),
 });
 
 
@@ -384,7 +386,7 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
     // 2. Hanya proses event 'payment.success'
     if (payload.event !== 'payment.success' || !payload.data) {
         return c.json({ success: true, message: 'Event diabaikan' }, 200);
-  Dihapus   }
+    }
     
     const tx = payload.data; 
 
@@ -441,7 +443,7 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
     } catch (e) {
         console.error('Webhook Gagal: ' + e.message);
         return c.json({ error: 'Internal Server Error: ' + e.message }, 500);
-}
+    }
 });
 
 
@@ -550,7 +552,7 @@ admin.put('/products/:id', zValidator('json', productSchema), async (c) => {
 
     const { results } = await env.DB.prepare(
         `UPDATE products SET 
-         name = ?, description = ?, price = ?, product_type = ?,
+         name = ?, description = ?, price = ?, product_type = ?, 
          digital_content = ?, image_url = ?, category_id = ?, is_active = ?
          WHERE id = ? RETURNING *`
     ).bind(
@@ -600,6 +602,7 @@ admin.get('/products/:id/stock', async (c) => {
     return c.json(results || []);
 });
 
+// --- PERBAIKAN: Rute POST Stok untuk menerima BATCH/ARRAY ---
 admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => {
     /** @type {Bindings} */
     const env = c.env;
@@ -614,11 +617,19 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
         return c.json({ error: 'Produk tidak ditemukan atau bukan tipe UNIQUE' }, 404);
     }
 
-    const { results } = await env.DB.prepare(
-        "INSERT INTO product_stock_unique (product_id, content, is_sold, order_id) VALUES (?, ?, 0, NULL) RETURNING *"
-    ).bind(id, body.content).all();
+    // Buat batch insert
+    const statements = body.stock_items.map(content => {
+        return env.DB.prepare("INSERT INTO product_stock_unique (product_id, content, is_sold) VALUES (?, ?, 0)")
+                   .bind(id, content);
+    });
+    
+    if (statements.length === 0) {
+        return c.json({ error: 'Tidak ada stok yang diberikan' }, 400);
+    }
+
+    await env.DB.batch(statements);
     
-    return c.json(results[0], 201);
+    return c.json({ success: true, message: `${statements.length} item stok ditambahkan` }, 201);
 });
 
 admin.delete('/stock/:stockId', async (c) => {
@@ -648,17 +659,26 @@ admin.get('/products/:id/gallery', async (c) => {
     return c.json(results || []);
 });
 
+// --- PERBAIKAN: Rute POST Galeri untuk menerima BATCH/ARRAY (Full Sync) ---
 admin.post('/products/:id/gallery', zValidator('json', gallerySchema), async (c) => {
     /** @type {Bindings} */
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
+    
+    // 1. Hapus semua gambar galeri lama untuk produk ini
+    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
+
+    // 2. Buat batch insert untuk gambar baru
+    const insertStmts = body.images.map((url, index) => {
+        return env.DB.prepare("INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)")
+                   .bind(id, url, index);
+    });
+
+    // 3. Jalankan sebagai batch
+    await env.DB.batch([deleteStmt, ...insertStmts]);
     
-    const { results } = await env.DB.prepare("INSERT INTO product_images (product_id, image_url) VALUES (?, ?) RETURNING *")
-        .bind(id, body.image_url)
-        .all();
-    
-    return c.json(results[0], 201);
+    return c.json({ success: true, message: `Galeri disinkronkan (${insertStmts.length} gambar)` }, 201);
 });
 
 admin.delete('/gallery/:imageId', async (c) => {
@@ -668,6 +688,35 @@ admin.delete('/gallery/:imageId', async (c) => {
     await env.DB.prepare("DELETE FROM product_images WHERE id = ?").bind(imageId).run();
     // --- KOREKSI: Memperbaiki sintaks return yang terpotong ---
     return c.json({ success: true, message: 'Gambar Galeri Dihapus' });
+});
+
+/**
+ * Rute Admin: Melihat Orders (BARU)
+ */
+admin.get('/orders', async (c) => {
+    /** @type {Bindings} */
+    const env = c.env;
+    const { results } = await env.DB.prepare(
+        `SELECT o.*, p.name as product_name, u.email as user_email
+         FROM orders o
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN users u ON o.user_id = u.id
+         ORDER BY o.created_at DESC`
+    ).all();
+    return c.json(results || []);
+});
+
+/**
+ * Rute Admin: Melihat Users (BARU)
+ */
+admin.get('/users', async (c) => {
+    /** @type {Bindings} */
+    const env = c.env;
+    // Jangan pernah kirim password_hash ke frontend
+    const { results } = await env.DB.prepare(
+        "SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC"
+    ).all();
+    return c.json(results || []);
 });
     
 // --- Ekspor Handler ---
