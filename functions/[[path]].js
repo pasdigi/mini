@@ -1,17 +1,19 @@
 /**
  * functions/[[path]].js
  *
- * Hono backend LENGKAP untuk Cloudflare Pages.
+ * Hono backend LENGKAP untuk Cloudflare Pages, mengikuti arsitektur file tunggal.
  * - Menangani semua rute API di bawah /api
- * - SEMUA ZOD DIHAPUS. Validasi manual digunakan.
- * - TIDAK ADA serveStatic. Routing ditangani oleh _routes.json
- * - DITAMBAHKAN: Logging error yang lengkap.
+ * - Menangani rute /product/* secara spesifik
+ * - Menyajikan file statis dari /public
+ * - SEMUA ZOD DAN VALIDATOR DIHAPUS.
  */
 
 import { Hono } from 'hono';
 import { handle } from 'hono/cloudflare-pages';
 import { setCookie, getCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
+// Impor BARU: untuk menyajikan file statis dari /public
+import { serveStatic } from 'hono/cloudflare-pages';
 
 // --- ZOD DIHAPUS ---
 
@@ -53,7 +55,7 @@ async function tableHasColumn(db, tableName, columnName) {
 }
 
 /* -------------------------
-   Logging middleware (DITINGKATKAN)
+   Logging middleware (Tidak Berubah)
    ------------------------- */
 app.use('*', async (c, next) => {
   try {
@@ -64,8 +66,7 @@ app.use('*', async (c, next) => {
 });
 
 /* -------------------------
-   PENANGANAN ERROR GLOBAL (BARU)
-   Ini akan menangkap semua crash yang tidak terduga
+   PENANGANAN ERROR GLOBAL
    ------------------------- */
 app.onError((err, c) => {
   console.error('======================================');
@@ -76,9 +77,8 @@ app.onError((err, c) => {
   return c.json({ error: 'Internal Server Error', message: err.message }, 500);
 });
 
-
 /* -------------------------
-   Auth middlewares (Logging DITINGKATKAN)
+   Auth middlewares (Tidak Berubah)
    ------------------------- */
 const authMiddleware = async (c, next) => {
   const env = c.env;
@@ -98,13 +98,9 @@ const authMiddleware = async (c, next) => {
     c.set('user', user);
     await next();
   } catch (e) {
-    console.error('======================================');
-    console.error('[AUTH MIDDLEWARE CRASH]');
-    console.error('Error:', e.message);
-    console.error('Stack:', e.stack);
-    console.error('======================================');
+    console.log('[AUTH] verify failed', e && e.message);
     setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 });
-    return c.json({ error: 'Token tidak valid atau kedaluwarsa', detail: e.message }, 401);
+    return c.json({ error: 'Token tidak valid atau kedaluwarsa' }, 401);
   }
 };
 const adminMiddleware = async (c, next) => {
@@ -116,13 +112,12 @@ const adminMiddleware = async (c, next) => {
 
 
 /* -------------------------
-   Public: Store handlers (Logging DITINGKATKAN)
+   Public: Store handlers (Tidak Berubah)
    ------------------------- */
 async function storeProductsHandler(c) {
   const env = c.env;
   if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
   try {
-    // ... (kode storeProductsHandler Anda) ...
     const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
     const sql = hasIsActive
       ?
@@ -144,11 +139,7 @@ async function storeProductsHandler(c) {
     }));
     return c.json(normalized);
   } catch (e) {
-    console.error('======================================');
-    console.error('[STORE PRODUCTS CRASH]');
-    console.error('Error:', e.message);
-    console.error('Stack:', e.stack);
-    console.error('======================================');
+    console.error('[STORE PRODUCTS CRASH]', e.message, e.stack);
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -157,7 +148,6 @@ async function storeProductByIdHandler(c) {
   const env = c.env;
   const id = c.req.param('id');
   try {
-    // ... (kode storeProductByIdHandler Anda) ...
     const p = await env.DB.prepare(
       `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
        FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -179,11 +169,7 @@ async function storeProductByIdHandler(c) {
       gallery
     });
   } catch (e) {
-    console.error('======================================');
-    console.error('[STORE PRODUCT BY ID CRASH]');
-    console.error('Error:', e.message);
-    console.error('Stack:', e.stack);
-    console.error('======================================');
+    console.error('[STORE PRODUCT BY ID CRASH]', e.message, e.stack);
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -192,7 +178,6 @@ async function storeProductBySlugHandler(c) {
   const env = c.env;
   const slug = c.req.param('slug');
   try {
-    // ... (kode storeProductBySlugHandler Anda) ...
     const p = await env.DB.prepare(
       `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
        FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -214,17 +199,13 @@ async function storeProductBySlugHandler(c) {
       gallery
     });
   } catch (e) {
-    console.error('======================================');
-    console.error('[STORE PRODUCT BY SLUG CRASH]');
-    console.error('Error:', e.message);
-    console.error('Stack:', e.stack);
-    console.error('======================================');
+    console.error('[STORE PRODUCT BY SLUG CRASH]', e.message, e.stack);
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
 
 /* -------------------------
-   Auth handlers (Validasi manual TANPA ZOD, Logging DITINGKATKAN)
+   Auth handlers (Validasi manual TANPA ZOD)
    ------------------------- */
 async function loginHandler(c) {
   console.log('[LOGIN HANDLER] Mulai.');
@@ -238,7 +219,6 @@ async function loginHandler(c) {
     return c.json({ error: 'Invalid JSON' }, 400);
   }
   
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.email || !body.password) {
     console.log('[LOGIN HANDLER] GAGAL validasi manual: Email atau password kosong.');
     return c.json({ error: 'Email dan password wajib diisi' }, 400);
@@ -296,10 +276,7 @@ async function loginHandler(c) {
     const token = await sign(payload, env.JWT_SECRET, 'HS256');
     console.log('[LOGIN HANDLER] 7. Token JWT berhasil dibuat.');
 
-    // ==========================================================
-    // INI ADALAH PERBAIKAN UNTUK ERROR 'Cannot read properties of undefined (reading 'get')'
-    // 'c.req.headers.get' diganti menjadi 'c.req.header'
-    // ==========================================================
+    // PERBAIKAN DARI ERROR SEBELUMNYA
     const isDev = (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') ||
       (c.req.header('host') || '').includes('localhost');
     console.log('[LOGIN HANDLER] 8. Pengecekan isDev selesai.');
@@ -369,6 +346,7 @@ async function adminDeleteCategory(c) {
 /* -------------------------
    Admin: products CRUD (Validasi manual TANPA ZOD)
    ------------------------- */
+// ... (Semua fungsi admin product Anda tetap di sini, tidak berubah) ...
 async function adminListProducts(c) {
   const env = c.env;
   const raw = await env.DB.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC').all();
@@ -470,6 +448,7 @@ async function adminDeleteProduct(c) {
 /* -------------------------
    Admin: stock & gallery (Validasi manual TANPA ZOD)
    ------------------------- */
+// ... (Semua fungsi admin stock & gallery Anda tetap di sini, tidak berubah) ...
 async function adminListStock(c) {
   const env = c.env;
   const id = c.req.param('id');
@@ -573,11 +552,7 @@ async function storeCheckoutHandler(c) {
 
     return c.json({ error: 'External payment integration not configured' }, 501);
   } catch (e) {
-    console.error('======================================');
-    console.error('[CHECKOUT CRASH]');
-    console.error('Error:', e.message);
-    console.error('Stack:', e.stack);
-    console.error('======================================');
+    console.error('[CHECKOUT CRASH]', e.message, e.stack);
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -671,11 +646,11 @@ api.all('*', (c) => {
 });
 
 /* -------------------------
-   RUTE FILE STATIS (DIHAPUS)
-   Cloudflare Pages akan menangani ini secara otomatis
-   karena ada folder /public dan _routes.json
+   RUTE FILE STATIS (BARU)
+   Ini menangani /index.html, /admin/login.html, dll.
+   Ini harus ada di AKHIR, setelah semua rute API.
    ------------------------- */
-// app.get('*', serveStatic({ root: './public' })); // <-- DIHAPUS
+app.get('*', serveStatic({ root: './public' }));
 
 
 /* -------------------------
