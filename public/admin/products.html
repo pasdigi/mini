@@ -1,68 +1,384 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin - Produk</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Produk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Sembunyikan panah atas/bawah di input number */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
-  <!-- Sidebar/header omitted for brevity (use existing template) -->
-  <!-- ... rest of layout ... -->
-  <!-- Table header includes Slug column -->
-  <!-- Modal form includes input for 'slug' (optional) under Nama Produk -->
-  <!-- When rendering table rows, include slug and link editing/view via slug -->
-  <!-- Full file content based on previously provided admin/products.html but with these additions: -->
-  <!-- (Below is the core changes; integrate into your full admin/products.html) -->
-  <div class="container mx-auto p-4 max-w-6xl">
-    <h1 class="text-2xl font-semibold mb-4">Manajemen Produk</h1>
-    <button id="add-new-btn" class="bg-blue-600 text-white py-2 px-4 rounded mb-4">Tambah Produk Baru</button>
+    <div class="flex h-screen bg-gray-200">
+        <div class="w-64 bg-gray-800 text-white p-4">
+            <h2 class="text-2xl font-bold mb-6">Admin Paspay</h2>
+            <nav>
+                <a href="/admin/dashboard.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                <a href="/admin/products.html" class="block py-2.5 px-4 rounded bg-gray-700">Produk</a>
+                <a href="/admin/categories.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Kategori</a>
+                <a href="/admin/orders.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Orders</a>
+                <a href="/admin/users.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Users</a>
+            </nav>
+        </div>
 
-    <div class="bg-white p-4 rounded shadow">
-      <table class="min-w-full">
-        <thead>
-          <tr>
-            <th>Nama</th><th>Slug</th><th>Kategori</th><th>Tipe</th><th>Harga</th><th>Status</th><th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="products-table">
-          <tr><td colspan="7">Memuat...</td></tr>
-        </tbody>
-      </table>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-md p-4">
+                <h1 class="text-2xl font-semibold text-gray-700">Manajemen Produk</h1>
+            </header>
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                
+                <button id="add-new-btn" class="bg-blue-600 text-white py-2 px-4 rounded mb-4">Tambah Produk Baru</button>
+
+                <div class="bg-white p-4 rounded shadow">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipe</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="7" class="p-4 text-center text-gray-500">Memuat...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                </main>
+        </div>
     </div>
-  </div>
 
-  <!-- Modal (simplified) -->
-  <div id="product-modal" class="hidden fixed inset-0 flex items-center justify-center p-4 bg-gray-800 bg-opacity-50">
-    <div class="bg-white p-6 rounded w-full max-w-3xl">
-      <h3 id="form-title" class="text-xl mb-4">Tambah Produk Baru</h3>
-      <form id="product-form">
-        <input type="hidden" id="product-id" />
-        <div class="mb-2">
-          <label class="block text-sm">Nama Produk</label>
-          <input id="name" required class="w-full border p-2 rounded" />
+    <div id="product-modal" class="hidden fixed inset-0 flex items-center justify-center p-4 bg-gray-800 bg-opacity-50 overflow-y-auto">
+        <div class="bg-white p-6 rounded w-full max-w-3xl">
+            <h3 id="form-title" class="text-xl mb-4">Tambah Produk Baru</h3>
+            <form id="product-form" class="space-y-4">
+                <input type="hidden" id="product-id" />
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nama Produk</label>
+                        <input id="name" required class="w-full border p-2 rounded mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Slug (opsional)</label>
+                        <input id="slug" class="w-full border p-2 rounded mt-1" placeholder="biarkan kosong untuk auto-generate" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Kategori</label>
+                        <select id="category_id" class="w-full border p-2 rounded mt-1">
+                            <option value="">Memuat kategori...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Harga</label>
+                        <input id="price" type="number" required class="w-full border p-2 rounded mt-1" value="0" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Deskripsi</label>
+                    <textarea id="description" class="w-full border p-2 rounded mt-1" rows="3"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tipe Produk</label>
+                        <select id="product_type" class="w-full border p-2 rounded mt-1">
+                            <option value="STANDARD">STANDARD (Stok tidak terbatas)</option>
+                            <option value="UNIQUE">UNIQUE (Stok unik, cth: kode voucher)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Konten Digital (jika tipe STANDARD)</label>
+                        <input id="digital_content" class="w-full border p-2 rounded mt-1" placeholder="cth: link download / kode lisensi" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Image URL</label>
+                        <input id="image_url" class="w-full border p-2 rounded mt-1" placeholder="https://..." />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="is_active" class="w-full border p-2 rounded mt-1">
+                            <option value="1">Aktif (Tampil di toko)</option>
+                            <option value="0">Nonaktif (Sembunyikan)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" id="modal-close-btn" class="px-4 py-2 bg-gray-200 rounded">Batal</button>
+                    <button type="submit" id="save-product-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Simpan</button>
+                </div>
+                <p id="form-message" class="text-sm mt-3 text-right"></p>
+            </form>
         </div>
-        <div class="mb-2">
-          <label class="block text-sm">Slug (opsional)</label>
-          <input id="slug" class="w-full border p-2 rounded" placeholder="biarkan kosong untuk auto-generate" />
-        </div>
-        <!-- rest fields: description, price, category, product_type, digital_content, image_url, is_active -->
-        <!-- omitted for brevity — reuse inputs from previous admin/products.html but ensure slug input present -->
-        <div class="flex justify-end gap-2 mt-4">
-          <button type="button" id="modal-close-btn" class="px-4 py-2 bg-gray-200 rounded">Batal</button>
-          <button type="submit" id="save-product-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Simpan</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <script>
-    // In your existing admin JS, ensure:
-    // - when creating/updating product, include slug: document.getElementById('slug').value
-    // - when rendering product rows, include a cell: <td>${escapeHtml(p.slug||'')}</td>
-    // - when building link to product page use slug: '/product.html?slug='+encodeURIComponent(p.slug)
-    // Example: product link on cards or table should use slug not id.
-    // Implementations largely follow previously provided admin script; only change is sending/reading slug field.
-  </script>
+    <script>
+        const API_PRODUCTS_URL = '/api/admin/products';
+        const API_CATEGORIES_URL = '/api/admin/categories';
+        
+        // Elemen UI
+        const tableBody = document.getElementById('products-table');
+        const modal = document.getElementById('product-modal');
+        const addNewBtn = document.getElementById('add-new-btn');
+        const cancelBtn = document.getElementById('modal-close-btn');
+        const form = document.getElementById('product-form');
+        const formTitle = document.getElementById('form-title');
+        const messageEl = document.getElementById('form-message');
+
+        // Elemen Form
+        const productIdField = document.getElementById('product-id');
+        const nameField = document.getElementById('name');
+        const slugField = document.getElementById('slug');
+        const categoryIdField = document.getElementById('category_id');
+        const priceField = document.getElementById('price');
+        const descriptionField = document.getElementById('description');
+        const productTypeField = document.getElementById('product_type');
+        const digitalContentField = document.getElementById('digital_content');
+        const imageUrlField = document.getElementById('image_url');
+        const isActiveField = document.getElementById('is_active');
+
+        // Helper: Tampilkan pesan
+        function showMessage(text, isError = false, timeout = 3000) {
+            messageEl.textContent = text;
+            messageEl.className = isError ? 'text-sm mt-3 text-red-600' : 'text-sm mt-3 text-green-600';
+            if (timeout > 0) setTimeout(() => messageEl.textContent = '', timeout);
+        }
+
+        // Helper: Reset form dan sembunyikan modal
+        function resetForm() {
+            form.reset();
+            productIdField.value = '';
+            formTitle.textContent = 'Tambah Produk Baru';
+            isActiveField.value = '1'; // Default ke Aktif
+            productTypeField.value = 'STANDARD'; // Default ke STANDARD
+            modal.classList.add('hidden');
+        }
+
+        // Helper: Parse JSON
+        async function parseJsonResponse(res) {
+            const text = await res.text();
+            try {
+                return { ok: res.ok, status: res.status, json: JSON.parse(text) };
+            } catch (e) {
+                return { ok: res.ok, status: res.status, json: null, raw: text };
+            }
+        }
+
+        // Helper: Escape HTML
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str ?? '';
+            return str.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+        }
+        
+        // 1. (BARU) Load Kategori ke dalam <select>
+        async function loadCategoriesForForm() {
+            try {
+                const res = await fetch(API_CATEGORIES_URL, { credentials: 'include' });
+                const parsed = await parseJsonResponse(res);
+                if (!res.ok) throw new Error(parsed.json?.error || 'Gagal memuat kategori');
+                
+                const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json.data || parsed.json.results || []);
+                categoryIdField.innerHTML = '<option value="">-- Pilih Kategori --</option>'; // Default
+                data.forEach(cat => {
+                    categoryIdField.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
+                });
+            } catch (err) {
+                console.error('Gagal load kategori untuk form', err);
+                categoryIdField.innerHTML = '<option value="">Gagal memuat kategori</option>';
+            }
+        }
+
+        // 2. READ (Load Produk)
+        async function loadProducts() {
+            try {
+                const res = await fetch(API_PRODUCTS_URL, { credentials: 'include' });
+                if (!res.ok) {
+                    const txt = await res.text();
+                    if (res.status === 401 || res.status === 403) {
+                        alert('Akses terlarang atau session habis. Silakan login ulang.');
+                        window.location.href = '/admin/login.html';
+                    }
+                    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+                }
+
+                const parsed = await parseJsonResponse(res);
+                if (parsed.json === null) {
+                    throw new Error('Response bukan JSON: ' + (parsed.raw || 'empty'));
+                }
+                
+                const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json.data || parsed.json.results || []);
+                tableBody.innerHTML = '';
+                
+                if (data && data.length > 0) {
+                    data.forEach(p => {
+                        const status = p.is_active ? 'Aktif' : 'Nonaktif';
+                        const statusColor = p.is_active ? 'text-green-600' : 'text-gray-500';
+                        // Simpan semua data produk di atribut data-* untuk diedit
+                        const productData = escapeHtml(JSON.stringify(p));
+
+                        tableBody.innerHTML += `
+                            <tr data-product='${productData}'>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(p.name)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(p.slug)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(p.category_name || '—')}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(p.product_type)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp ${new Intl.NumberFormat('id-ID').format(p.price)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm ${statusColor}">${status}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button class="text-blue-600 hover:text-blue-900 edit-btn">Edit</button>
+                                    <button class="text-red-600 hover:text-red-900 ml-4 delete-btn">Hapus</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-500">Belum ada produk.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Gagal load produk', err);
+                tableBody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">Gagal memuat data.</td></tr>';
+            }
+        }
+
+        // 3. CREATE / UPDATE
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = productIdField.value;
+            
+            // Kumpulkan semua data dari form
+            const body = {
+                name: nameField.value.trim(),
+                slug: slugField.value.trim() || null, // Kirim null jika kosong
+                category_id: categoryIdField.value ? parseInt(categoryIdField.value, 10) : null,
+                price: priceField.value ? parseFloat(priceField.value) : 0,
+                description: descriptionField.value.trim(),
+                product_type: productTypeField.value,
+                digital_content: digitalContentField.value.trim(),
+                image_url: imageUrlField.value.trim(),
+                is_active: isActiveField.value === '1' // Konversi ke boolean
+            };
+
+            if (!body.name || body.price === null) {
+                showMessage('Nama dan Harga wajib diisi', true);
+                return;
+            }
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_PRODUCTS_URL}/${id}` : API_PRODUCTS_URL;
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const parsed = await parseJsonResponse(res);
+                if (!res.ok) {
+                    const bodyMsg = parsed.json?.error || parsed.json?.message || parsed.raw || res.statusText;
+                    if (res.status === 401 || res.status === 403) {
+                        showMessage('Akses terlarang / session habis. Silakan login ulang.', true, 6000);
+                        return;
+                    }
+                    throw new Error(bodyMsg || `HTTP ${res.status}`);
+                }
+
+                showMessage('Berhasil menyimpan produk', false);
+                resetForm();
+                await loadProducts();
+            } catch (err) {
+                console.error('Gagal simpan produk', err);
+                showMessage(`Gagal: ${err.message}`, true, 6000);
+            }
+        });
+
+        // 4. Tombol Batal & Tambah Baru (Event Listeners)
+        cancelBtn.addEventListener('click', resetForm);
+        
+        addNewBtn.addEventListener('click', () => {
+            resetForm(); // Reset dulu
+            modal.classList.remove('hidden'); // Tampilkan modal
+            formTitle.textContent = 'Tambah Produk Baru';
+        });
+
+        // 5. Event Listener untuk tombol Edit dan Delete di tabel
+        tableBody.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            // Ambil data produk lengkap yang kita simpan
+            const product = JSON.parse(row.dataset.product);
+            const id = product.id;
+            
+            // Tombol EDIT
+            if (e.target.classList.contains('edit-btn')) {
+                // Isi form dengan data produk
+                formTitle.textContent = 'Edit Produk';
+                productIdField.value = product.id;
+                nameField.value = product.name || '';
+                slugField.value = product.slug || '';
+                categoryIdField.value = product.category_id || '';
+                priceField.value = product.price || 0;
+                descriptionField.value = product.description || '';
+                productTypeField.value = product.product_type || 'STANDARD';
+                digitalContentField.value = product.digital_content || '';
+                imageUrlField.value = product.image_url || '';
+                isActiveField.value = product.is_active ? '1' : '0';
+
+                modal.classList.remove('hidden'); // Tampilkan modal
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+            
+            // Tombol DELETE
+            if (e.target.classList.contains('delete-btn')) {
+                if (!confirm(`Yakin ingin menghapus produk "${product.name}"?`)) return;
+
+                try {
+                    const res = await fetch(`${API_PRODUCTS_URL}/${id}`, { method: 'DELETE', credentials: 'include' });
+                    const parsed = await parseJsonResponse(res);
+                    if (!res.ok) {
+                        const bodyMsg = parsed.json?.error || parsed.json?.message || parsed.raw || res.statusText;
+                        if (res.status === 401 || res.status === 403) {
+                            showMessage('Akses terlarang / session habis. Silakan login ulang.', true, 6000);
+                            return;
+                        }
+                        throw new Error(bodyMsg || `HTTP ${res.status}`);
+                    }
+
+                    showMessage('Produk dihapus', false);
+                    await loadProducts();
+                } catch (err) {
+                    console.error('Gagal hapus produk', err);
+                    showMessage(`Gagal menghapus: ${err.message}`, true, 6000);
+                }
+            }
+        });
+
+        // Load awal
+        loadCategoriesForForm(); // Muat kategori untuk dropdown
+        loadProducts(); // Muat produk untuk tabel
+    </script>
 </body>
 </html>
