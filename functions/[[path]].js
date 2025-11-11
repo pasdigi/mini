@@ -12,9 +12,9 @@ import { handle } from 'hono/cloudflare-pages';
 import { setCookie, getCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
 
-// --- ZOD DAN SEMUA SKEMA DIHAPUS ---
+// --- ZOD DIHAPUS ---
 
-// --- Inisialisasi Hono (Mencontoh file Anda) ---
+// --- Inisialisasi Hono ---
 const app = new Hono();
 // Semua rute API sekarang ada di bawah /api
 const api = app.basePath('/api');
