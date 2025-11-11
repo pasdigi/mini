@@ -125,7 +125,7 @@
                 <div class="md:col-span-3 text-right space-x-2">
                     <input type="hidden" id="product-id" value="">
                     <button type="button" id="modal-close-btn" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300">Batal</button>
-                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Simpan Produk</button>
+                    <button type="submit" id="save-product-btn" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Simpan Produk</button>
                 </div>
             </form>
             <p id="form-message" class="text-sm mt-3"></p>
@@ -171,6 +171,7 @@
         const featuredImagePreview = document.getElementById('featured-image-preview');
         const featuredImageUrlField = document.getElementById('image_url');
         const galleryPreview = document.getElementById('gallery-preview');
+        const saveProductBtn = document.getElementById('save-product-btn');
         
         // --- State ---
         let imageManifest = [];
@@ -200,29 +201,28 @@
         }
         function closeExplorer() { explorerModal.classList.add('hidden'); }
 
+        // --- Robust JSON parser helper ---
+        async function parseJsonResponse(res) {
+            const txt = await res.text();
+            try {
+                return { ok: res.ok, status: res.status, json: JSON.parse(txt), raw: txt };
+            } catch (e) {
+                return { ok: res.ok, status: res.status, json: null, raw: txt };
+            }
+        }
+
         // --- 1. Load Data Awal (Kategori & Produk) ---
         async function loadCategories() {
             try {
-                // Penting: kirim cookie otentikasi (jika ada)
                 const res = await fetch(API_CATEGORIES, { credentials: 'include' });
                 if (!res.ok) {
                     const txt = await res.text();
-                    throw new Error(`HTTP ${res.status}: ${txt}`);
+                    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
                 }
-
-                // Toleransi bentuk response: bisa array langsung atau object { data: [...] }
-                let json;
-                try {
-                    json = await res.json();
-                } catch (parseErr) {
-                    // Jika gagal parse JSON, ambil raw text untuk debugging
-                    const raw = await res.text();
-                    throw new Error('JSON parse error. Response text: ' + raw);
-                }
-
-                const data = Array.isArray(json) ? json : (json.data || json.results || []);
+                const parsed = await parseJsonResponse(res);
+                const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json?.data || parsed.json?.results || []);
                 categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-                if (data && data.length > 0) {
+                if (data) {
                     data.forEach(cat => {
                         categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
                     });
@@ -239,17 +239,18 @@
                 const res = await fetch(API_PRODUCTS, { credentials: 'include' });
                 if (!res.ok) {
                     const txt = await res.text();
-                    throw new Error(`HTTP ${res.status}: ${txt}`);
+                    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
                 }
-                const data = await res.json();
+                const parsed = await parseJsonResponse(res);
+                const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json?.data || parsed.json?.results || []);
                 tableBody.innerHTML = '';
                 if (data && data.length > 0) {
                     data.forEach(p => {
                         tableBody.innerHTML += `
                             <tr data-id="${p.id}">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${p.name}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.category_name || '-'}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.product_type}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(p.name)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(p.category_name || '-')}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(p.product_type)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp ${new Intl.NumberFormat('id-ID').format(p.price)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button class="text-blue-600 hover:text-blue-900 edit-btn">Edit</button>
@@ -350,50 +351,117 @@
         // CREATE / UPDATE Produk
         productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            saveProductBtn.disabled = true;
             const id = productIdField.value;
             const formData = new FormData(productForm);
             const data = Object.fromEntries(formData.entries());
-            
+
+            // Cast and normalize types expected by the API
+            data.price = Number(data.price) || 0;
+            data.category_id = data.category_id ? Number(data.category_id) : null;
+            data.product_type = data.product_type || 'STANDARD';
+            data.image_url = featuredImageUrlField.value || null;
+            // Ensure boolean
+            data.is_active = (data.is_active === 'on' || data.is_active === true || data.is_active === 'true') ? true : false;
+
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${API_PRODUCTS}/${id}` : API_PRODUCTS;
-            
+
             try {
                 // 6.1 Kirim data produk utama (CREATE/UPDATE)
                 const res = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || JSON.stringify(result));
-                
-                const savedProductId = id || result.data?.id || result.id || result.id;
-                
-                // 6.2 Kirim data Galeri
-                await fetch(`${API_PRODUCTS}/${savedProductId}/gallery`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ images: currentGallery })
-                });
 
-                // 6.3 Kirim Stok (jika ada)
-                const stockItems = (data.stock_items || '').split('\n').map(s => s.trim()).filter(Boolean); // Pecah per baris
-                if (data.product_type === 'UNIQUE' && stockItems.length > 0) {
-                    await fetch(`${API_PRODUCTS}/${savedProductId}/stock`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ stock_items: stockItems })
-                    });
+                const parsed = await parseJsonResponse(res);
+                if (!res.ok) {
+                    // prefer error message string if available, otherwise stringify
+                    const errBody = parsed.json?.error ?? parsed.json?.message ?? parsed.raw ?? `HTTP ${res.status}`;
+                    throw new Error(typeof errBody === 'string' ? errBody : JSON.stringify(errBody));
                 }
-                
+
+                // Extract saved product id robustly
+                const resultJson = parsed.json;
+                const savedProductId = id || (resultJson && (resultJson.data?.id || resultJson.id || resultJson.results?.id || resultJson?.data?.last_row_id));
+
+                if (!savedProductId) {
+                    // try to find in nested shapes or meta
+                    if (resultJson && resultJson.results && Array.isArray(resultJson.results) && resultJson.results[0] && resultJson.results[0].id) {
+                        // e.g. returning results array
+                        // eslint-disable-next-line prefer-destructuring
+                        savedProductId = resultJson.results[0].id;
+                    }
+                }
+
+                if (!savedProductId) {
+                    // If still not found, for update we can use id, otherwise throw
+                    if (id) {
+                        // using existing id
+                    } else {
+                        throw new Error('ID produk yang tersimpan tidak ditemukan pada response server.');
+                    }
+                }
+
+                const finalProductId = savedProductId || id;
+
+                // 6.2 Kirim data Galeri (sinkron)
+                try {
+                    const galleryRes = await fetch(`${API_PRODUCTS}/${finalProductId}/gallery`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ images: currentGallery })
+                    });
+                    const galleryParsed = await parseJsonResponse(galleryRes);
+                    if (!galleryRes.ok) {
+                        const gMsg = galleryParsed.json?.error ?? galleryParsed.raw ?? `HTTP ${galleryRes.status}`;
+                        console.warn('Gallery sync failed:', gMsg);
+                        // Non-fatal: warn user but continue
+                        showMessage('Produk disimpan, tetapi gagal menyinkronkan galeri. Periksa log.', true);
+                    }
+                } catch (gErr) {
+                    console.warn('Gallery sync exception', gErr);
+                    showMessage('Produk disimpan, tetapi terjadi kesalahan saat mengirim galeri.', true);
+                }
+
+                // 6.3 Kirim Stok (jika ada dan tipe UNIQUE)
+                const stockTextarea = document.getElementById('stock_items');
+                let stockItems = [];
+                if (data.product_type === 'UNIQUE' && stockTextarea) {
+                    stockItems = (stockTextarea.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+                    if (stockItems.length > 0) {
+                        try {
+                            const stockRes = await fetch(`${API_PRODUCTS}/${finalProductId}/stock`, {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ stock_items: stockItems })
+                            });
+                            const stockParsed = await parseJsonResponse(stockRes);
+                            if (!stockRes.ok) {
+                                const sMsg = stockParsed.json?.error ?? stockParsed.raw ?? `HTTP ${stockRes.status}`;
+                                console.warn('Stock add failed:', sMsg);
+                                showMessage('Produk disimpan, tetapi gagal menambahkan stok.', true);
+                            }
+                        } catch (sErr) {
+                            console.warn('Stock add exception', sErr);
+                            showMessage('Produk disimpan, tetapi terjadi kesalahan saat menambahkan stok.', true);
+                        }
+                    }
+                }
+
                 showMessage('Produk berhasil disimpan!', false);
                 closeModal();
-                loadProducts();
+                await loadProducts();
             } catch (err) {
+                console.error('Gagal menyimpan produk', err);
+                // err.message is guaranteed to be a string (we wrap non-strings above)
                 showMessage(`Gagal: ${err.message}`, true);
+            } finally {
+                saveProductBtn.disabled = false;
             }
         });
 
@@ -409,24 +477,26 @@
                     const res = await fetch(`${API_PRODUCTS}/${id}`, { credentials: 'include' });
                     if (!res.ok) {
                         const txt = await res.text();
-                        throw new Error(`HTTP ${res.status}: ${txt}`);
+                        throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
                     }
-                    const { data } = await res.json();
+                    const parsed = await parseJsonResponse(res);
+                    // Support response being object product directly or { data: product }
+                    const data = parsed.json?.data || parsed.json || {};
                     if (!data) throw new Error('Produk tidak ditemukan');
 
                     // Isi form
                     formTitle.textContent = `Edit Produk: ${data.name}`;
                     productIdField.value = data.id;
-                    productForm.querySelector('#name').value = data.name;
-                    productForm.querySelector('#description').value = data.description;
-                    productForm.querySelector('#price').value = data.price;
-                    productForm.querySelector('#category_id').value = data.category_id;
-                    productForm.querySelector('#product_type').value = data.product_type;
-                    productForm.querySelector('#digital_content').value = data.digital_content;
-                    productForm.querySelector('#image_url').value = data.image_url;
+                    productForm.querySelector('#name').value = data.name || '';
+                    productForm.querySelector('#description').value = data.description || '';
+                    productForm.querySelector('#price').value = data.price || '';
+                    productForm.querySelector('#category_id').value = data.category_id || '';
+                    productForm.querySelector('#product_type').value = data.product_type || 'STANDARD';
+                    productForm.querySelector('#digital_content').value = data.digital_content || '';
+                    productForm.querySelector('#image_url').value = data.image_url || '';
                     featuredImagePreview.src = data.image_url || 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
                     
-                    currentGallery = (data.gallery || []).map(img => img.image_url || img);
+                    currentGallery = (data.gallery || []).map(img => (img.image_url || img));
                     renderGalleryPreview();
                     toggleProductTypeFields();
                     openModal();
@@ -441,9 +511,12 @@
 
                 try {
                     const res = await fetch(`${API_PRODUCTS}/${id}`, { method: 'DELETE', credentials: 'include' });
-                    const result = await res.json();
-                    if (!res.ok) throw new Error(result.error);
-                    showMessage(result.message, false);
+                    const parsed = await parseJsonResponse(res);
+                    if (!res.ok) {
+                        const bodyMsg = parsed.json?.error || parsed.raw || `HTTP ${res.status}`;
+                        throw new Error(bodyMsg);
+                    }
+                    showMessage(parsed.json?.message || 'Produk dihapus', false);
                     loadProducts();
                 } catch (err) {
                     alert(`Gagal menghapus: ${err.message}`);
@@ -452,13 +525,20 @@
         });
 
         // --- 7. Inisialisasi ---
-        // Fungsi resetForm (dipanggil di addNewBtn) - pastikan ada
         function resetForm() {
             productForm.reset();
             productIdField.value = '';
             currentGallery = [];
             galleryPreview.innerHTML = '';
             featuredImagePreview.src = 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+        }
+
+        // basic escape helper
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str ?? '';
+            return str.replace(/[&<>"']/g, function(m) {
+                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+            });
         }
 
         loadCategories();
