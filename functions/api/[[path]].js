@@ -429,7 +429,7 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
                 console.error(`Webhook Error: Stok untuk Order ID ${order.id} tidak ditemukan!`);
                 // TODO: Kirim email ke admin
                 return c.json({ error: 'Stok internal tidak ditemukan' }, 500);
-            }
+Dihapus         }
             delivered_content = stock.content;
         }
 
@@ -565,7 +565,7 @@ admin.put('/products/:id', zValidator('json', productSchema), async (c) => {
         body.category_id || null,
         body.is_active ? 1 : 0,
         id
-_    ).all();
+    ).all();
     
     return c.json(results[0]);
 });
@@ -630,7 +630,7 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
 });
 
 admin.delete('/stock/:stockId', async (c) => {
-s    /** @type {Bindings} */
+    /** @type {Bindings} */
     const env = c.env;
     const stockId = c.req.param('stockId');
     // Hapus hanya jika belum terjual
@@ -683,7 +683,7 @@ admin.delete('/gallery/:imageId', async (c) => {
     const env = c.env;
     const imageId = c.req.param('imageId');
     await env.DB.prepare("DELETE FROM product_images WHERE id = ?").bind(imageId).run();
-    return c.json({ success: true, message: 'Gambar Galeri Dihapus' });
+}   return c.json({ success: true, message: 'Gambar Galeri Dihapus' });
 });
 
 /**
@@ -694,7 +694,7 @@ admin.get('/orders', async (c) => {
     const env = c.env;
     const { results } = await env.DB.prepare(
         `SELECT o.*, p.name as product_name, u.email as user_email
-TOLONG        FROM orders o
+         FROM orders o
          LEFT JOIN products p ON o.product_id = p.id
          LEFT JOIN users u ON o.user_id = u.id
          ORDER BY o.created_at DESC`
@@ -708,7 +708,7 @@ TOLONG        FROM orders o
 admin.get('/users', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
-s    // Jangan pernah kirim password_hash ke frontend
+    // Jangan pernah kirim password_hash ke frontend
     const { results } = await env.DB.prepare(
         "SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC"
     ).all();
