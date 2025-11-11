@@ -1,14 +1,13 @@
-// Debug-enabled functions file (add or replace in functions/api/[[path]].js)
-// IMPORTANT: set an env var DEBUG_TOKEN in your Pages environment (random secret).
-// Then call: https://<your-site>/api/debug/db?token=THE_SECRET
-// The route returns counts, sample rows and schema info for quick debugging.
+// Debug + robust store/products handler - paste ini into your existing functions/api/[[path]].js
+// or replace the store/products handler with this one temporarily.
+// This route prints DB shapes and sample rows so we can see why results are [].
 
 import { Hono } from 'hono';
 import { handle } from 'hono/cloudflare-pages';
 
 const app = new Hono();
 
-// Simple logging middleware
+// Logging middleware
 app.use('*', async (c, next) => {
   try {
     console.log('[INCOMING]', c.req.method, c.req.url);
@@ -17,16 +16,16 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Helper to run a query and return results safely
+// Helper wrappers
 async function safeAll(db, sql, params = []) {
   try {
-    const { results } = await db.prepare(sql).bind(...params).all();
-    return { ok: true, results: results || [] };
+    const res = await db.prepare(sql).bind(...params).all();
+    // return raw object to inspect shape
+    return { ok: true, raw: res, results: res.results ?? null };
   } catch (e) {
     return { ok: false, error: String(e && (e.message || e)) };
   }
 }
-
 async function safeFirst(db, sql, params = []) {
   try {
     const row = await db.prepare(sql).bind(...params).first();
@@ -36,94 +35,88 @@ async function safeFirst(db, sql, params = []) {
   }
 }
 
-// Protected debug route
+// Debug route (protected by token query param)
 app.get('/debug/db', async (c) => {
   const env = c.env;
   const token = c.req.query('token') || '';
   const expected = env.DEBUG_TOKEN || '';
   if (!expected || token !== expected) {
-    return c.json({ error: 'Unauthorized. Provide ?token=... and set DEBUG_TOKEN env var' }, 401);
+    return c.json({ error: 'Unauthorized - set DEBUG_TOKEN env var and pass ?token=...' }, 401);
   }
-
-  if (!env.DB) {
-    return c.json({ error: 'No DB binding found on env.DB' }, 500);
-  }
+  if (!env.DB) return c.json({ error: 'No DB binding (env.DB not present)' }, 500);
 
   const out = {};
 
-  // counts
-  const cntProducts = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM products');
-  const cntCategories = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM categories');
-  const cntImages = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM product_images');
-  const cntStock = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM product_stock_unique');
+  // schema info (if supported)
+  out.products_table_info = await safeAll(env.DB, "PRAGMA table_info('products')");
 
+  // counts
+  const cntAll = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM products');
+  const cntActive = await safeFirst(env.DB, 'SELECT COUNT(*) as cnt FROM products WHERE is_active = 1');
   out.counts = {
-    products: cntProducts.ok ? (cntProducts.row?.cnt ?? 0) : cntProducts.error,
-    categories: cntCategories.ok ? (cntCategories.row?.cnt ?? 0) : cntCategories.error,
-    product_images: cntImages.ok ? (cntImages.row?.cnt ?? 0) : cntImages.error,
-    product_stock_unique: cntStock.ok ? (cntStock.row?.cnt ?? 0) : cntStock.error,
+    products_total: cntAll.ok ? (cntAll.row?.cnt ?? 0) : cntAll.error,
+    products_active_1: cntActive.ok ? (cntActive.row?.cnt ?? 0) : cntActive.error
   };
 
   // sample rows
-  const sampleProducts = await safeAll(env.DB, 'SELECT * FROM products ORDER BY id DESC LIMIT 50');
-  const sampleCategories = await safeAll(env.DB, 'SELECT * FROM categories ORDER BY id DESC LIMIT 50');
-  const sampleImages = await safeAll(env.DB, 'SELECT * FROM product_images ORDER BY id DESC LIMIT 50');
-  const sampleStock = await safeAll(env.DB, 'SELECT * FROM product_stock_unique ORDER BY id DESC LIMIT 50');
+  out.sample_products = await safeAll(env.DB, 'SELECT * FROM products ORDER BY id DESC LIMIT 50');
+  out.sample_categories = await safeAll(env.DB, 'SELECT * FROM categories ORDER BY id DESC LIMIT 50');
+  out.sample_images = await safeAll(env.DB, 'SELECT * FROM product_images ORDER BY id DESC LIMIT 50');
+  out.sample_stock = await safeAll(env.DB, 'SELECT * FROM product_stock_unique ORDER BY id DESC LIMIT 50');
 
-  out.samples = {
-    products: sampleProducts,
-    categories: sampleCategories,
-    product_images: sampleImages,
-    product_stock_unique: sampleStock,
-  };
-
-  // The exact query used by the store endpoint
-  const storeQuery = `
+  // the exact store query (with and without is_active filter)
+  const storeSql = `
     SELECT p.id, p.name, p.price, p.description, p.image_url, c.name as category_name
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.is_active = 1
     ORDER BY p.name ASC
   `;
-  const storeSamples = await safeAll(env.DB, storeQuery);
-  out.store_query = { sql: storeQuery.trim(), result: storeSamples };
-
-  // optional: show schema info if supported
-  const pragma = await safeAll(env.DB, "PRAGMA table_info('products')");
-  out.products_table_info = pragma;
+  out.store_query_with_filter = await safeAll(env.DB, storeSql);
+  out.store_query_without_filter = await safeAll(env.DB, `
+    SELECT p.id, p.name, p.price, p.description, p.image_url, c.name as category_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    ORDER BY p.name ASC
+  `);
 
   return c.json(out);
 });
 
-// Also register /api/debug/db just in case
-app.get('/api/debug/db', async (c) => {
-  // redirect to /debug/db so logic centralized
-  return app.handle(c.req, c.env);
-});
-
-// Provide the store/products route as typical (returns array)
+// Robust store/products handler
 app.get('/store/products', async (c) => {
   const env = c.env;
   if (!env.DB) return c.json({ error: 'No DB binding' }, 500);
   try {
-    const { results } = await env.DB.prepare(
+    // Use explicit prepare().all() and log raw response
+    const raw = await env.DB.prepare(
       `SELECT p.id, p.name, p.price, p.description, p.image_url, c.name as category_name
-       FROM products p LEFT JOIN categories c ON p.category_id = c.id
-       WHERE p.is_active = 1 ORDER BY p.name ASC`
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.is_active = 1
+       ORDER BY p.name ASC`
     ).all();
-    return c.json(results || []);
+    console.log('DB.raw store/products:', JSON.stringify(raw, null, 2));
+    // Normalise: if driver returns { results } or returns array directly
+    const rows = raw.results ?? raw;
+    // If rows is an object (unlikely), convert if it has .results property deeper
+    if (Array.isArray(rows)) return c.json(rows);
+    // fallback: try to return raw.results or empty
+    return c.json(raw.results ?? raw ?? []);
   } catch (e) {
     console.error('store/products error', e && e.message);
     return c.json({ error: 'Internal Server Error: ' + (e && e.message) }, 500);
   }
 });
+// Also register tolerant alias in case
 app.get('/api/store/products', async (c) => {
-  return app.handle(c.req, c.env); // ensure tolerant mapping hits same handler
+  return app.handle(c.req, c.env);
+});
+app.get('/api/api/store/products', async (c) => {
+  return app.handle(c.req, c.env);
 });
 
 // Fallback
-app.all('*', (c) => {
-  return c.json({ error: 'Not Found' }, 404);
-});
+app.all('*', (c) => c.json({ error: 'Not Found' }, 404));
 
 export const onRequest = handle(app);
