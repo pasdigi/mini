@@ -1,10 +1,8 @@
 {
   "version": 1,
   "include": [
-    "/api/*"
+    "/api/*",
+    "/product/*"
   ],
-  "exclude": [
-    "/product.html"
-  ],
-  "fallback": "/product.html"
+  "exclude": []
 }
