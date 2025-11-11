@@ -1,16 +1,10 @@
 /**
- * functions/api/[[path]].js
+ * functions/[[path]].js
  *
- * Full Hono backend for Cloudflare Pages.
- * - Normalizes D1 return shapes
- * - Adds slug handling and uniqueness
- * - Detects products.is_active column presence
- * - Auth (login/logout) with JWT cookie
- * - Admin protected routes (categories, products, stock, gallery, orders, users)
- * - Public store routes (list, detail by id, detail by slug)
- * - Debug route protected by DEBUG_TOKEN (optional)
- *
- * Deploy to: functions/api/[[path]].js
+ * Hono backend LENGKAP untuk Cloudflare Pages, mengikuti arsitektur file tunggal.
+ * - Melayani file statis dari /public
+ * - Menangani semua rute API di bawah /api
+ * - VALIDATOR DIHAPUS, validasi Zod dilakukan secara manual di dalam handler.
  */
 
 import { Hono } from 'hono';
@@ -18,13 +12,38 @@ import { handle } from 'hono/cloudflare-pages';
 import { setCookie, getCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
 import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+// Impor BARU: untuk menyajikan file statis dari /public
+import { serveStatic } from 'hono/cloudflare-pages';
 
+// --- Skema Zod (Tetap kita gunakan untuk validasi manual) ---
+const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
+const productSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().optional().nullable(),
+  price: z.number().nonnegative(),
+  product_type: z.enum(['STANDARD', 'UNIQUE']),
+  description: z.string().optional().nullable(),
+  digital_content: z.string().optional().nullable(),
+  image_url: z.string().optional().nullable(),
+  category_id: z.number().int().optional().nullable(),
+  is_active: z.boolean().optional()
+});
+const categorySchema = z.object({ name: z.string().min(1), slug: z.string().min(1) });
+const stockSchema = z.object({ stock_items: z.array(z.string().min(1)) });
+const gallerySchema = z.object({ images: z.array(z.string().url()) });
+const checkoutSchema = z.object({ product_id: z.number().int(), email: z.string().email(), name: z.string().optional() });
+const webhookSchema = z.object({ event: z.string(), data: z.any().optional() });
+
+
+// --- Inisialisasi Hono (Mencontoh file Anda) ---
 const app = new Hono();
-/* -------------------------
-   Utilities
-   ------------------------- */
+// Semua rute API sekarang ada di bawah /api
+const api = app.basePath('/api');
 
+
+/* -------------------------
+   Utilities (Tidak Berubah)
+   ------------------------- */
 function normalizeAllResult(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
@@ -54,7 +73,7 @@ async function tableHasColumn(db, tableName, columnName) {
 }
 
 /* -------------------------
-   Logging middleware
+   Logging middleware (Tidak Berubah)
    ------------------------- */
 app.use('*', async (c, next) => {
   try {
@@ -66,27 +85,9 @@ app.use('*', async (c, next) => {
   } catch (e) {}
   await next();
 });
-/* -------------------------
-   Schemas
-   ------------------------- */
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
-const productSchema = z.object({
-  name: z.string().min(1),
-  slug: z.string().optional().nullable(),
-  price: z.number().nonnegative(),
-  product_type: z.enum(['STANDARD', 'UNIQUE']),
-  description: z.string().optional().nullable(),
-  digital_content: z.string().optional().nullable(),
-  image_url: z.string().optional().nullable(),
-  category_id: z.number().int().optional().nullable(),
-  is_active: z.boolean().optional()
-});
-const categorySchema = z.object({ name: z.string().min(1), slug: z.string().min(1) });
-const stockSchema = z.object({ stock_items: z.array(z.string().min(1)) });
-const gallerySchema = z.object({ images: z.array(z.string().url()) });
 
 /* -------------------------
-   Auth middlewares
+   Auth middlewares (Tidak Berubah)
    ------------------------- */
 const authMiddleware = async (c, next) => {
   const env = c.env;
@@ -118,21 +119,10 @@ const adminMiddleware = async (c, next) => {
   await next();
 };
 
-/* -------------------------
-   Tolerant route registrar
-   ------------------------- */
-function register(method, path, ...handlers) {
-  const m = method.toLowerCase();
-  if (typeof app[m] !== 'function') throw new Error('Invalid method: ' + method);
-  app[m](path, ...handlers);
-  app[m]('/api' + path, ...handlers);
-  app[m]('/api/api' + path, ...handlers);
-}
 
 /* -------------------------
-   Public: Store handlers
+   Public: Store handlers (Tidak Berubah)
    ------------------------- */
-
 async function storeProductsHandler(c) {
   const env = c.env;
   if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
@@ -224,9 +214,8 @@ async function storeProductBySlugHandler(c) {
 }
 
 /* -------------------------
-   Auth handlers
+   Auth handlers (Validasi internal)
    ------------------------- */
-
 async function loginHandler(c) {
   const env = c.env;
   let body;
@@ -235,6 +224,8 @@ async function loginHandler(c) {
   } catch (e) {
     return c.json({ error: 'Invalid JSON' }, 400);
   }
+  
+  // Validasi Zod manual (menggantikan zValidator)
   try {
     loginSchema.parse(body);
   } catch (zerr) {
@@ -245,8 +236,6 @@ async function loginHandler(c) {
     const user = await env.DB.prepare('SELECT id, password_hash, role, status FROM users WHERE email = ?').bind(body.email).first();
     if (!user) return c.json({ error: 'Email atau password salah' }, 401);
 
-    // verify password (PBKDF2 style) if possible;
-    // fallback to direct compare
     let verified = false;
     try {
       const [saltHex, hashHex] = (user.password_hash || '').split(':');
@@ -285,9 +274,8 @@ async function logoutHandler(c) {
 }
 
 /* -------------------------
-   Admin: categories
+   Admin: categories (Validasi internal)
    ------------------------- */
-
 async function adminListCategories(c) {
   const env = c.env;
   const raw = await env.DB.prepare('SELECT * FROM categories ORDER BY name ASC').all();
@@ -296,16 +284,32 @@ async function adminListCategories(c) {
 
 async function adminCreateCategory(c) {
   const env = c.env;
-  const body = c.req.valid('json');
-  const { results } = await env.DB.prepare('INSERT INTO categories (name, slug) VALUES (?, ?) RETURNING *').bind(body.name, body.slug).all();
+  const body = await c.req.json().catch(() => null);
+  
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = categorySchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+  
+  const { results } = await env.DB.prepare('INSERT INTO categories (name, slug) VALUES (?, ?) RETURNING *').bind(validatedBody.name, validatedBody.slug).all();
   return c.json(normalizeAllResult(results)[0], 201);
 }
 
 async function adminUpdateCategory(c) {
   const env = c.env;
   const id = c.req.param('id');
-  const body = c.req.valid('json');
-  const { results } = await env.DB.prepare('UPDATE categories SET name = ?, slug = ? WHERE id = ? RETURNING *').bind(body.name, body.slug, id).all();
+  const body = await c.req.json().catch(() => null);
+
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = categorySchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+  
+  const { results } = await env.DB.prepare('UPDATE categories SET name = ?, slug = ? WHERE id = ? RETURNING *').bind(validatedBody.name, validatedBody.slug, id).all();
   return c.json(normalizeAllResult(results)[0]);
 }
 
@@ -317,9 +321,8 @@ async function adminDeleteCategory(c) {
 }
 
 /* -------------------------
-   Admin: products CRUD
+   Admin: products CRUD (Validasi internal)
    ------------------------- */
-
 async function adminListProducts(c) {
   const env = c.env;
   const raw = await env.DB.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC').all();
@@ -338,11 +341,18 @@ async function adminGetProduct(c) {
 
 async function adminCreateProduct(c) {
   const env = c.env;
-  const body = c.req.valid('json');
-  let slug = (body.slug || '').trim();
-  if (!slug) slug = slugify(body.name || '');
+  const body = await c.req.json().catch(() => null);
+
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = productSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+
+  let slug = (validatedBody.slug || '').trim();
+  if (!slug) slug = slugify(validatedBody.name || '');
   if (!slug) slug = `p-${Date.now()}`;
-  // ensure unique slug
   let candidate = slug;
   let i = 1;
   while (true) {
@@ -357,13 +367,13 @@ async function adminCreateProduct(c) {
     const { results } = await env.DB.prepare(
       `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
-    ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0).all();
+    ).bind(slug, validatedBody.name, validatedBody.description || null, validatedBody.price, validatedBody.product_type, validatedBody.digital_content || null, validatedBody.image_url || null, validatedBody.category_id || null, validatedBody.is_active ? 1 : 0).all();
     return c.json(normalizeAllResult(results)[0], 201);
   } else {
     const { results } = await env.DB.prepare(
       `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
-    ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null).all();
+    ).bind(slug, validatedBody.name, validatedBody.description || null, validatedBody.price, validatedBody.product_type, validatedBody.digital_content || null, validatedBody.image_url || null, validatedBody.category_id || null).all();
     return c.json(normalizeAllResult(results)[0], 201);
   }
 }
@@ -371,10 +381,17 @@ async function adminCreateProduct(c) {
 async function adminUpdateProduct(c) {
   const env = c.env;
   const id = c.req.param('id');
-  const body = c.req.valid('json');
-  let slug = (body.slug || '').trim();
-  if (!slug) slug = slugify(body.name || '') || `p-${id}`;
-  // ensure unique (excluding current id)
+  const body = await c.req.json().catch(() => null);
+  
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = productSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+  
+  let slug = (validatedBody.slug || '').trim();
+  if (!slug) slug = slugify(validatedBody.name || '') || `p-${id}`;
   let candidate = slug;
   let i = 1;
   while (true) {
@@ -388,12 +405,12 @@ async function adminUpdateProduct(c) {
   if (hasIsActive) {
     const { results } = await env.DB.prepare(
       `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ?, is_active = ? WHERE id = ? RETURNING *`
-    ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0, id).all();
+    ).bind(slug, validatedBody.name, validatedBody.description || null, validatedBody.price, validatedBody.product_type, validatedBody.digital_content || null, validatedBody.image_url || null, validatedBody.category_id || null, validatedBody.is_active ? 1 : 0, id).all();
     return c.json(normalizeAllResult(results)[0]);
   } else {
     const { results } = await env.DB.prepare(
       `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ? WHERE id = ? RETURNING *`
-    ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, id).all();
+    ).bind(slug, validatedBody.name, validatedBody.description || null, validatedBody.price, validatedBody.product_type, validatedBody.digital_content || null, validatedBody.image_url || null, validatedBody.category_id || null, id).all();
     return c.json(normalizeAllResult(results)[0]);
   }
 }
@@ -411,9 +428,8 @@ async function adminDeleteProduct(c) {
 }
 
 /* -------------------------
-   Admin: stock & gallery
+   Admin: stock & gallery (Validasi internal)
    ------------------------- */
-
 async function adminListStock(c) {
   const env = c.env;
   const id = c.req.param('id');
@@ -424,10 +440,18 @@ async function adminListStock(c) {
 async function adminAddStock(c) {
   const env = c.env;
   const id = c.req.param('id');
-  const body = c.req.valid('json');
+  const body = await c.req.json().catch(() => null);
+  
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = stockSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+  
   const product = await env.DB.prepare("SELECT id FROM products WHERE id = ? AND product_type = 'UNIQUE'").bind(id).first();
   if (!product) return c.json({ error: 'Produk tidak ditemukan atau bukan tipe UNIQUE' }, 404);
-  const stmts = body.stock_items.map((content) => env.DB.prepare('INSERT INTO product_stock_unique (product_id, content, is_sold) VALUES (?, ?, 0)').bind(id, content));
+  const stmts = validatedBody.stock_items.map((content) => env.DB.prepare('INSERT INTO product_stock_unique (product_id, content, is_sold) VALUES (?, ?, 0)').bind(id, content));
   if (stmts.length === 0) return c.json({ error: 'Tidak ada stok yang diberikan' }, 400);
   await env.DB.batch(stmts);
   return c.json({ success: true, message: `${stmts.length} item stok ditambahkan` }, 201);
@@ -451,9 +475,17 @@ async function adminListGallery(c) {
 async function adminSyncGallery(c) {
   const env = c.env;
   const id = c.req.param('id');
-  const body = c.req.valid('json');
+  const body = await c.req.json().catch(() => null);
+
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = gallerySchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+
   const deleteStmt = env.DB.prepare('DELETE FROM product_images WHERE product_id = ?').bind(id);
-  const insertStmts = body.images.map((url, index) => env.DB.prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').bind(id, url, index));
+  const insertStmts = validatedBody.images.map((url, index) => env.DB.prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').bind(id, url, index));
   await env.DB.batch([deleteStmt, ...insertStmts]);
   return c.json({ success: true, message: `Galeri disinkronkan (${insertStmts.length} gambar)` }, 201);
 }
@@ -466,9 +498,8 @@ async function adminDeleteGallery(c) {
 }
 
 /* -------------------------
-   Admin: orders & users
+   Admin: orders & users (Tidak Berubah)
    ------------------------- */
-
 async function adminListOrders(c) {
   const env = c.env;
   const raw = await env.DB.prepare(
@@ -488,17 +519,24 @@ async function adminListUsers(c) {
 }
 
 /* -------------------------
-   Checkout & Webhook
+   Checkout & Webhook (Validasi internal)
    ------------------------- */
-
 async function storeCheckoutHandler(c) {
   const env = c.env;
-  const body = c.req.valid('json');
+  const body = await c.req.json().catch(() => null);
+
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = checkoutSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const validatedBody = result.data;
+
   try {
-    const product = await env.DB.prepare('SELECT id, name, price, product_type FROM products WHERE id = ?').bind(body.product_id).first();
+    const product = await env.DB.prepare('SELECT id, name, price, product_type FROM products WHERE id = ?').bind(validatedBody.product_id).first();
     if (!product) return c.json({ error: 'Produk tidak valid atau tidak aktif' }, 404);
     if (!env.PASPAY_API_URL || !env.PASPAY_API_KEY) {
-      const { meta } = await env.DB.prepare('INSERT INTO orders (product_id, status, total_amount, customer_email, created_at, user_id) VALUES (?, ?, ?, ?, ?, 0)').bind(product.id, 'UNPAID', product.price, body.email, Math.floor(Date.now() / 1000)).run();
+      const { meta } = await env.DB.prepare('INSERT INTO orders (product_id, status, total_amount, customer_email, created_at, user_id) VALUES (?, ?, ?, ?, ?, 0)').bind(product.id, 'UNPAID', product.price, validatedBody.email, Math.floor(Date.now() / 1000)).run();
       return c.json({ success: true, order_id: meta?.last_row_id || null, message: 'Order created (local)' });
     }
 
@@ -516,15 +554,22 @@ async function paspayWebhookHandler(c) {
     authHeader.split(' ')[1] : '';
   if (!env.PASPAY_WEBHOOK_TOKEN || incoming !== env.PASPAY_WEBHOOK_TOKEN) return c.json({ error: 'Unauthorized' }, 401);
 
-  const payload = c.req.valid('json');
+  const body = await c.req.json().catch(() => null);
+
+  // Validasi Zod manual (menggantikan c.req.valid('json'))
+  const result = webhookSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({ error: 'Invalid payload', detail: result.error.errors }, 422);
+  }
+  const payload = result.data;
+
   console.log('Webhook received', payload);
   return c.json({ success: true });
 }
 
 /* -------------------------
-   Debug
+   Debug (Tidak Berubah)
    ------------------------- */
-
 async function debugDbHandler(c) {
   const env = c.env;
   const token = c.req.query('token') || '';
@@ -542,55 +587,65 @@ async function debugDbHandler(c) {
 }
 
 /* -------------------------
-   Register routes
+   Register routes (DIUBAH TOTAL)
+   Semua menggunakan api.METHOD(...)
    ------------------------- */
 
 // Public store routes
-register('get', '/store/products', storeProductsHandler);
-register('get', '/store/products/:id', storeProductByIdHandler);
-register('get', '/store/products/slug/:slug', storeProductBySlugHandler);
+api.get('/store/products', storeProductsHandler);
+api.get('/store/products/:id', storeProductByIdHandler);
+api.get('/store/products/slug/:slug', storeProductBySlugHandler);
 
 // Auth
-register('post', '/login', zValidator('json', loginSchema), loginHandler);
-register('post', '/logout', logoutHandler);
+api.post('/login', loginHandler); // zValidator dihapus, validasi ada di dalam handler
+api.post('/logout', logoutHandler);
 // Checkout & webhook
-register('post', '/store/checkout', zValidator('json', z.object({ product_id: z.number().int(), email: z.string().email(), name: z.string().optional() })), storeCheckoutHandler);
-register('post', '/webhook/paspay', zValidator('json', z.object({ event: z.string(), data: z.any().optional() })), paspayWebhookHandler);
+api.post('/store/checkout', storeCheckoutHandler); // zValidator dihapus, validasi ada di dalam handler
+api.post('/webhook/paspay', paspayWebhookHandler); // zValidator dihapus, validasi ada di dalam handler
 
 // Admin categories
-register('get', '/admin/categories', authMiddleware, adminMiddleware, adminListCategories);
-register('post', '/admin/categories', authMiddleware, adminMiddleware, zValidator('json', categorySchema), adminCreateCategory);
-register('put', '/admin/categories/:id', authMiddleware, adminMiddleware, zValidator('json', categorySchema), adminUpdateCategory);
-register('delete', '/admin/categories/:id', authMiddleware, adminMiddleware, adminDeleteCategory);
+api.get('/admin/categories', authMiddleware, adminMiddleware, adminListCategories);
+api.post('/admin/categories', authMiddleware, adminMiddleware, adminCreateCategory); // zValidator dihapus
+api.put('/admin/categories/:id', authMiddleware, adminMiddleware, adminUpdateCategory); // zValidator dihapus
+api.delete('/admin/categories/:id', authMiddleware, adminMiddleware, adminDeleteCategory);
 // Admin products
-register('get', '/admin/products', authMiddleware, adminMiddleware, adminListProducts);
-register('get', '/admin/products/:id', authMiddleware, adminMiddleware, adminGetProduct);
-register('post', '/admin/products', authMiddleware, adminMiddleware, zValidator('json', productSchema), adminCreateProduct);
-register('put', '/admin/products/:id', authMiddleware, adminMiddleware, zValidator('json', productSchema), adminUpdateProduct);
-register('delete', '/admin/products/:id', authMiddleware, adminMiddleware, adminDeleteProduct);
+api.get('/admin/products', authMiddleware, adminMiddleware, adminListProducts);
+api.get('/admin/products/:id', authMiddleware, adminMiddleware, adminGetProduct);
+api.post('/admin/products', authMiddleware, adminMiddleware, adminCreateProduct); // zValidator dihapus
+api.put('/admin/products/:id', authMiddleware, adminMiddleware, adminUpdateProduct); // zValidator dihapus
+api.delete('/admin/products/:id', authMiddleware, adminMiddleware, adminDeleteProduct);
 // Admin stock & gallery
-register('get', '/admin/products/:id/stock', authMiddleware, adminMiddleware, adminListStock);
-register('post', '/admin/products/:id/stock', authMiddleware, adminMiddleware, zValidator('json', stockSchema), adminAddStock);
-register('delete', '/admin/stock/:stockId', authMiddleware, adminMiddleware, adminDeleteStock);
+api.get('/admin/products/:id/stock', authMiddleware, adminMiddleware, adminListStock);
+api.post('/admin/products/:id/stock', authMiddleware, adminMiddleware, adminAddStock); // zValidator dihapus
+api.delete('/admin/stock/:stockId', authMiddleware, adminMiddleware, adminDeleteStock);
 
-register('get', '/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminListGallery);
-register('post', '/admin/products/:id/gallery', authMiddleware, adminMiddleware, zValidator('json', gallerySchema), adminSyncGallery);
-register('delete', '/admin/gallery/:imageId', authMiddleware, adminMiddleware, adminDeleteGallery);
+api.get('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminListGallery);
+api.post('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminSyncGallery); // zValidator dihapus
+api.delete('/admin/gallery/:imageId', authMiddleware, adminMiddleware, adminDeleteGallery);
 
 // Admin orders & users
-register('get', '/admin/orders', authMiddleware, adminMiddleware, adminListOrders);
-register('get', '/admin/users', authMiddleware, adminMiddleware, adminListUsers);
+api.get('/admin/orders', authMiddleware, adminMiddleware, adminListOrders);
+api.get('/admin/users', authMiddleware, adminMiddleware, adminListUsers);
 // Debug
-register('get', '/debug/db', debugDbHandler);
+api.get('/debug/db', debugDbHandler);
+
 
 /* -------------------------
-   Fallback
+   Fallback (API)
    ------------------------- */
-app.all('*', (c) => {
-  try { console.log('[NO MATCH] method=', c.req.method, 'url=', c.req.url); } catch (e) {}
-  return c.json({ error: 'Not Found' }, 404);
+api.all('*', (c) => {
+  try { console.log('[API NO MATCH] method=', c.req.method, 'url=', c.req.url); } catch (e) {}
+  return c.json({ error: 'API Not Found' }, 404);
 });
+
 /* -------------------------
-   Export
+   RUTE FILE STATIS (BARU)
+   Menyajikan file dari /public untuk semua rute non-API
+   ------------------------- */
+app.get('*', serveStatic({ root: './public' }));
+
+
+/* -------------------------
+   Export (Tidak Berubah)
    ------------------------- */
 export const onRequest = handle(app);
