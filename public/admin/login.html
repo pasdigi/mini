@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-center text-gray-800">
+                Admin Login
+            </h2>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" name="email" required
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="••••••••">
+                </div>
+                <div>
+                    <button type="submit" id="submit-btn"
+                            class="w-full py-2 px-4 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Login
+                    </button>
+                </div>
+            </form>
+            <p id="message" class="text-sm text-center"></p>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const emailField = document.getElementById('email');
+        const passwordField = document.getElementById('password');
+        const messageEl = document.getElementById('message');
+        const submitBtn = document.getElementById('submit-btn');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Bersihkan pesan error sebelumnya
+            messageEl.textContent = '';
+            messageEl.className = 'text-sm text-center';
+            
+            // Nonaktifkan tombol
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Memproses...';
+
+            const email = emailField.value;
+            const password = passwordField.value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await res.json();
+
+                if (!res.ok) {
+                    // Tampilkan error dari API (cth: "Email atau password salah")
+                    throw new Error(result.error || 'Terjadi kesalahan');
+                }
+
+                // Sukses
+                messageEl.textContent = 'Login berhasil! Mengarahkan ke dashboard...';
+                messageEl.className = 'text-sm text-center text-green-600';
+                
+                // Arahkan ke dashboard admin
+                // API Anda akan mengatur cookie secara otomatis
+                window.location.href = '/admin/index.html'; // atau /admin/dashboard.html
+
+            } catch (err) {
+                // Tampilkan pesan error
+                messageEl.textContent = err.message;
+                messageEl.className = 'text-sm text-center text-red-600';
+                
+                // Aktifkan kembali tombol
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Login';
+            }
+        });
+    </script>
+
+</body>
+</html>
