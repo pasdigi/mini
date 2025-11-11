@@ -3,8 +3,6 @@
   "include": [
     "/api/*"
   ],
-  "exclude": [
-    "/product.html"
-  ],
+  "exclude": [],
   "fallback": "/product.html"
 }
