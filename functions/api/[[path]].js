@@ -18,7 +18,7 @@ import { zValidator } from '@hono/zod-validator';
 */
 
 // --- Utilitas Kriptografi (BARU) ---
-// Helper untuk mengubah ArrayBuffer (dari Web Crypto) ke Hex string
+// Helper untuk mengubah ArrayBuffer dari Web Crypto ke Hex string
 const bufferToHex = (buffer) => {
   return [...new Uint8Array(buffer)]
     .map(b => b.toString(16).padStart(2, '0'))
