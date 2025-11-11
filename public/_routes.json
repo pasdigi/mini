@@ -1,7 +1,9 @@
 {
   "version": 1,
   "include": [
-    "/product/*"
+    "/api/*",
+    "/product/*",
+    "/*"
   ],
   "exclude": [
     "/product.html"
