@@ -19,6 +19,7 @@
                 <a href="/admin/categories.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Kategori</a>
                 <a href="/admin/orders.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Orders</a>
                 <a href="/admin/users.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Users</a>
+                <a href="#" id="logout-btn" class="block py-2.5 px-4 rounded hover:bg-red-700 text-red-300">Logout</a>
             </nav>
         </div>
 
@@ -49,10 +50,26 @@
                     </div>
                 </div>
                 <!-- Akhir Konten Utama -->
-
             </main>
         </div>
     </div>
 
 </body>
+<script>
+document.getElementById('logout-btn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!confirm('Anda yakin ingin logout?')) return;
+
+    try {
+        const res = await fetch('/api/logout', { method: 'POST' });
+        if (res.ok) {
+            window.location.href = '/admin/login.html';
+        } else {
+            alert('Gagal logout.');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+});
+</script>
 </html>
