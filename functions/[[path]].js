@@ -1,10 +1,11 @@
 /**
  * functions/[[path]].js
  *
- * Hono backend LENGKAP untuk Cloudflare Pages, mengikuti arsitektur file tunggal.
+ * Hono backend LENGKAP untuk Cloudflare Pages.
  * - Menangani semua rute API di bawah /api
- * - SEMUA ZOD DAN VALIDATOR DIHAPUS. Validasi manual digunakan.
+ * - SEMUA ZOD DIHAPUS. Validasi manual digunakan.
  * - TIDAK ADA serveStatic. Routing ditangani oleh _routes.json
+ * - DITAMBAHKAN: Logging error yang lengkap.
  */
 
 import { Hono } from 'hono';
@@ -52,21 +53,31 @@ async function tableHasColumn(db, tableName, columnName) {
 }
 
 /* -------------------------
-   Logging middleware (Tidak Berubah)
+   Logging middleware (DITINGKATKAN)
    ------------------------- */
 app.use('*', async (c, next) => {
   try {
-    console.log('[INCOMING]', c.req.method, c.req.url);
-    try {
-      const u = new URL(c.req.url);
-      console.log('[INCOMING.pathname]', u.pathname);
-    } catch (e) {}
+    console.log(`[REQ START] ${c.req.method} ${c.req.url}`);
   } catch (e) {}
   await next();
+  console.log(`[REQ END] ${c.req.method} ${c.req.url} - Status: ${c.res.status}`);
 });
 
 /* -------------------------
-   Auth middlewares (Tidak Berubah)
+   PENANGANAN ERROR GLOBAL (BARU)
+   ------------------------- */
+app.onError((err, c) => {
+  console.error('======================================');
+  console.error(`[GLOBAL ERROR] Terjadi error pada: ${c.req.method} ${c.req.url}`);
+  console.error('Pesan Error:', err.message);
+  console.error('Stack Trace:', err.stack);
+  console.error('======================================');
+  return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+});
+
+
+/* -------------------------
+   Auth middlewares (Logging DITINGKATKAN)
    ------------------------- */
 const authMiddleware = async (c, next) => {
   const env = c.env;
@@ -86,9 +97,13 @@ const authMiddleware = async (c, next) => {
     c.set('user', user);
     await next();
   } catch (e) {
-    console.log('[AUTH] verify failed', e && e.message);
+    console.error('======================================');
+    console.error('[AUTH MIDDLEWARE CRASH]');
+    console.error('Error:', e.message);
+    console.error('Stack:', e.stack);
+    console.error('======================================');
     setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 });
-    return c.json({ error: 'Token tidak valid atau kedaluwarsa' }, 401);
+    return c.json({ error: 'Token tidak valid atau kedaluwarsa', detail: e.message }, 401);
   }
 };
 const adminMiddleware = async (c, next) => {
@@ -100,7 +115,7 @@ const adminMiddleware = async (c, next) => {
 
 
 /* -------------------------
-   Public: Store handlers (Tidak Berubah)
+   Public: Store handlers (Logging DITINGKATKAN)
    ------------------------- */
 async function storeProductsHandler(c) {
   const env = c.env;
@@ -127,7 +142,11 @@ async function storeProductsHandler(c) {
     }));
     return c.json(normalized);
   } catch (e) {
-    console.error('store/products error', e && e.stack);
+    console.error('======================================');
+    console.error('[STORE PRODUCTS CRASH]');
+    console.error('Error:', e.message);
+    console.error('Stack:', e.stack);
+    console.error('======================================');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -157,7 +176,11 @@ async function storeProductByIdHandler(c) {
       gallery
     });
   } catch (e) {
-    console.error('store/product by id error', e && e.stack);
+    console.error('======================================');
+    console.error('[STORE PRODUCT BY ID CRASH]');
+    console.error('Error:', e.message);
+    console.error('Stack:', e.stack);
+    console.error('======================================');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -187,13 +210,17 @@ async function storeProductBySlugHandler(c) {
       gallery
     });
   } catch (e) {
-    console.error('store/product by slug error', e && e.stack);
+    console.error('======================================');
+    console.error('[STORE PRODUCT BY SLUG CRASH]');
+    console.error('Error:', e.message);
+    console.error('Stack:', e.stack);
+    console.error('======================================');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
 
 /* -------------------------
-   Auth handlers (Validasi manual TANPA ZOD)
+   Auth handlers (Validasi manual TANPA ZOD, Logging DITINGKATKAN)
    ------------------------- */
 async function loginHandler(c) {
   const env = c.env;
@@ -230,7 +257,7 @@ async function loginHandler(c) {
     }
 
     if (!verified) return c.json({ error: 'Email atau password salah' }, 401);
-    if (user.status !== 'active') return c.json({ error: 'Akun nonaktif' }, 403);
+    if (user.status !== 'active') return c.json({ error: 'Akun tidak aktif' }, 403);
     const payload = { sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 };
     const token = await sign(payload, env.JWT_SECRET, 'HS256');
 
@@ -240,7 +267,11 @@ async function loginHandler(c) {
     setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isDev, sameSite: 'Lax', maxAge: 60 * 60 * 24 });
     return c.json({ success: true, message: 'Login berhasil' });
   } catch (e) {
-    console.error('login error', e && e.stack);
+    console.error('======================================');
+    console.error('[LOGIN HANDLER CRASH]');
+    console.error('Pesan Error:', e.message);
+    console.error('Stack Trace:', e.stack);
+    console.error('======================================');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -263,7 +294,6 @@ async function adminCreateCategory(c) {
   const env = c.env;
   const body = await c.req.json().catch(() => null);
   
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.name || !body.slug) {
     return c.json({ error: 'Nama dan slug wajib diisi' }, 400);
   }
@@ -277,7 +307,6 @@ async function adminUpdateCategory(c) {
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);
 
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.name || !body.slug) {
     return c.json({ error: 'Nama dan slug wajib diisi' }, 400);
   }
@@ -316,7 +345,6 @@ async function adminCreateProduct(c) {
   const env = c.env;
   const body = await c.req.json().catch(() => null);
 
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.name || typeof body.price !== 'number' || !body.product_type) {
     return c.json({ error: 'Nama, harga (angka), dan tipe produk wajib diisi' }, 400);
   }
@@ -354,7 +382,6 @@ async function adminUpdateProduct(c) {
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);
   
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.name || typeof body.price !== 'number' || !body.product_type) {
     return c.json({ error: 'Nama, harga (angka), dan tipe produk wajib diisi' }, 400);
   }
@@ -411,7 +438,6 @@ async function adminAddStock(c) {
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);
   
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.stock_items || !Array.isArray(body.stock_items)) {
     return c.json({ error: 'stock_items (array) wajib diisi' }, 400);
   }
@@ -444,7 +470,6 @@ async function adminSyncGallery(c) {
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);
 
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.images || !Array.isArray(body.images)) {
     return c.json({ error: 'images (array) wajib diisi' }, 400);
   }
@@ -490,7 +515,6 @@ async function storeCheckoutHandler(c) {
   const env = c.env;
   const body = await c.req.json().catch(() => null);
 
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.product_id || !body.email) {
     return c.json({ error: 'product_id dan email wajib diisi' }, 400);
   }
@@ -505,7 +529,11 @@ async function storeCheckoutHandler(c) {
 
     return c.json({ error: 'External payment integration not configured' }, 501);
   } catch (e) {
-    console.error('checkout error', e && e.stack);
+    console.error('======================================');
+    console.error('[CHECKOUT CRASH]');
+    console.error('Error:', e.message);
+    console.error('Stack:', e.stack);
+    console.error('======================================');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 }
@@ -519,7 +547,6 @@ async function paspayWebhookHandler(c) {
 
   const body = await c.req.json().catch(() => null);
 
-  // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.event) {
     return c.json({ error: 'Payload JSON dengan properti "event" wajib diisi' }, 400);
   }
