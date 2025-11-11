@@ -149,7 +149,6 @@ const authMiddleware = async (c, next) => {
         await next();
     } catch (e) {
         setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
-        // Tangkap error 'Token tidak valid' yang spesifik dari 'verify'
         return c.json({ error: 'Token tidak valid atau kedaluwarsa' }, 401);
     }
 };
@@ -211,8 +210,15 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
 /**
  * Rute Logout
  */
+// --- PERBAIKAN KRITIS: Tambahkan secure, httpOnly, dan sameSite agar cocok dengan cookie login ---
 app.post('/logout', (c) => {
-    setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 });
+    setCookie(c, 'auth_token', '', {
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax',
+        maxAge: 0 // Waktu disetel ke 0 untuk menghapus
+    });
     return c.json({ success: true, message: 'Logout berhasil' });
 });
 
@@ -600,7 +606,7 @@ admin.get('/products/:id/stock', async (c) => {
     const env = c.env;
     const id = c.req.param('id');
     const { results } = await env.DB.prepare(
-        "SELECT * FROM product_stock_unique WHERE product_id = ? ORDER BY id DESC"
+      TOLONG"SELECT * FROM product_stock_unique WHERE product_id = ? ORDER BY id DESC"
     ).bind(id).all();
     return c.json(results || []);
 });
@@ -664,13 +670,13 @@ admin.get('/products/:id/gallery', async (c) => {
 
 // --- PERBAIKAN: Rute POST Galeri untuk menerima BATCH/ARRAY (Full Sync) ---
 admin.post('/products/:id/gallery', zValidator('json', gallerySchema), async (c) => {
-    /** @type {Bindings} */
+NTOT    /** @type {Bindings} */
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
     
     // 1. Hapus semua gambar galeri lama untuk produk ini
-    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
+TOLONG    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
 
     // 2. Buat batch insert untuk gambar baru
     const insertStmts = body.images.map((url, index) => {
