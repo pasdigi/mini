@@ -130,6 +130,7 @@ const authMiddleware = async (c, next) => {
         return c.json({ error: 'Tidak terotentikasi' }, 401);
     }
     try {
+        // --- PERBAIKAN KRITIS: Tambahkan Algoritma 'HS256' ---
         const payload = await verify(token, env.JWT_SECRET, 'HS256');
         const user = await env.DB.prepare("SELECT id, role, status FROM users WHERE id = ?")
             .bind(payload.sub)
@@ -148,6 +149,7 @@ const authMiddleware = async (c, next) => {
         await next();
     } catch (e) {
         setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 }); 
+        // Tangkap error 'Token tidak valid' yang spesifik dari 'verify'
         return c.json({ error: 'Token tidak valid atau kedaluwarsa' }, 401);
     }
 };
@@ -192,6 +194,7 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
         role: user.role,
         exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 1 hari
     };
+    // --- PERBAIKAN KRITIS: Tambahkan Algoritma 'HS256' ---
     const token = await sign(payload, env.JWT_SECRET, 'HS256');
 
     setCookie(c, 'auth_token', token, {
@@ -617,17 +620,17 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
         return c.json({ error: 'Produk tidak ditemukan atau bukan tipe UNIQUE' }, 404);
     }
 
-    // Buat batch insert
-    const statements = body.stock_items.map(content => {
-        return env.DB.prepare("INSERT INTO product_stock_unique (product_id, content, is_sold) VALUES (?, ?, 0)")
-                   .bind(id, content);
-    });
-    
-    if (statements.length === 0) {
-        return c.json({ error: 'Tidak ada stok yang diberikan' }, 400);
-    }
+    // Buat batch insert
+    const statements = body.stock_items.map(content => {
+        return env.DB.prepare("INSERT INTO product_stock_unique (product_id, content, is_sold) VALUES (?, ?, 0)")
+                   .bind(id, content);
+    });
+    
+    if (statements.length === 0) {
+        return c.json({ error: 'Tidak ada stok yang diberikan' }, 400);
+    }
 
-    await env.DB.batch(statements);
+    await env.DB.batch(statements);
     
     return c.json({ success: true, message: `${statements.length} item stok ditambahkan` }, 201);
 });
@@ -665,18 +668,18 @@ admin.post('/products/:id/gallery', zValidator('json', gallerySchema), async (c)
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
-    
-    // 1. Hapus semua gambar galeri lama untuk produk ini
-    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
+    
+    // 1. Hapus semua gambar galeri lama untuk produk ini
+    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
 
-    // 2. Buat batch insert untuk gambar baru
-    const insertStmts = body.images.map((url, index) => {
-        return env.DB.prepare("INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)")
-                   .bind(id, url, index);
-    });
+    // 2. Buat batch insert untuk gambar baru
+    const insertStmts = body.images.map((url, index) => {
+        return env.DB.prepare("INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)")
+                   .bind(id, url, index);
+    });
 
-    // 3. Jalankan sebagai batch
-    await env.DB.batch([deleteStmt, ...insertStmts]);
+    // 3. Jalankan sebagai batch
+    await env.DB.batch([deleteStmt, ...insertStmts]);
     
     return c.json({ success: true, message: `Galeri disinkronkan (${insertStmts.length} gambar)` }, 201);
 });
@@ -697,12 +700,12 @@ admin.get('/orders', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
     const { results } = await env.DB.prepare(
-        `SELECT o.*, p.name as product_name, u.email as user_email
-         FROM orders o
-         LEFT JOIN products p ON o.product_id = p.id
-         LEFT JOIN users u ON o.user_id = u.id
-         ORDER BY o.created_at DESC`
-    ).all();
+        `SELECT o.*, p.name as product_name, u.email as user_email
+         FROM orders o
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN users u ON o.user_id = u.id
+         ORDER BY o.created_at DESC`
+    ).all();
     return c.json(results || []);
 });
 
@@ -712,10 +715,10 @@ admin.get('/orders', async (c) => {
 admin.get('/users', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
-    // Jangan pernah kirim password_hash ke frontend
+    // Jangan pernah kirim password_hash ke frontend
     const { results } = await env.DB.prepare(
-        "SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC"
-    ).all();
+        "SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC"
+    ).all();
     return c.json(results || []);
 });
     
