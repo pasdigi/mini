@@ -3,7 +3,6 @@ compatibility_date = "2024-05-10"
 pages_build_output_dir = "public"
 
 # --- Ikatan (Binding) Database D1 ---
-# Ganti "DB_NAME_ANDA" dengan nama database D1 Anda di Cloudflare
 [[d1_databases]]
 binding = "DB"
 database_name = "mini"
