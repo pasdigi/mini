@@ -65,6 +65,7 @@ app.use('*', async (c, next) => {
 
 /* -------------------------
    PENANGANAN ERROR GLOBAL (BARU)
+   Ini akan menangkap semua crash yang tidak terduga
    ------------------------- */
 app.onError((err, c) => {
   console.error('======================================');
@@ -121,6 +122,7 @@ async function storeProductsHandler(c) {
   const env = c.env;
   if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
   try {
+    // ... (kode storeProductsHandler Anda) ...
     const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
     const sql = hasIsActive
       ?
@@ -155,6 +157,7 @@ async function storeProductByIdHandler(c) {
   const env = c.env;
   const id = c.req.param('id');
   try {
+    // ... (kode storeProductByIdHandler Anda) ...
     const p = await env.DB.prepare(
       `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
        FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -189,6 +192,7 @@ async function storeProductBySlugHandler(c) {
   const env = c.env;
   const slug = c.req.param('slug');
   try {
+    // ... (kode storeProductBySlugHandler Anda) ...
     const p = await env.DB.prepare(
       `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
        FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -223,22 +227,37 @@ async function storeProductBySlugHandler(c) {
    Auth handlers (Validasi manual TANPA ZOD, Logging DITINGKATKAN)
    ------------------------- */
 async function loginHandler(c) {
+  console.log('[LOGIN HANDLER] Mulai.');
   const env = c.env;
   let body;
   try {
     body = await c.req.json();
+    console.log('[LOGIN HANDLER] 1. Body JSON berhasil di-parse.');
   } catch (e) {
+    console.error('[LOGIN HANDLER] GAGAL parse JSON body:', e.message);
     return c.json({ error: 'Invalid JSON' }, 400);
   }
   
   // Validasi manual (ZOD DIHAPUS)
   if (!body || !body.email || !body.password) {
+    console.log('[LOGIN HANDLER] GAGAL validasi manual: Email atau password kosong.');
     return c.json({ error: 'Email dan password wajib diisi' }, 400);
   }
+  console.log('[LOGIN HANDLER] 2. Validasi manual berhasil.');
 
   try {
+    console.log(`[LOGIN HANDLER] 3. Mencoba query ke DB untuk email: ${body.email}`);
+    if (!env.DB) {
+      console.error('[LOGIN HANDLER] CRASH: env.DB tidak terdefinisi!');
+      throw new Error('Database binding (DB) tidak ditemukan.');
+    }
+    
     const user = await env.DB.prepare('SELECT id, password_hash, role, status FROM users WHERE email = ?').bind(body.email).first();
-    if (!user) return c.json({ error: 'Email atau password salah' }, 401);
+    if (!user) {
+      console.log('[LOGIN HANDLER] 4. User tidak ditemukan di DB.');
+      return c.json({ error: 'Email atau password salah' }, 401);
+    }
+    console.log(`[LOGIN HANDLER] 4. User ditemukan: ${user.email} (Role: ${user.role})`);
 
     let verified = false;
     try {
@@ -256,16 +275,41 @@ async function loginHandler(c) {
       console.warn('Password verify failed', pwErr && pwErr.message);
     }
 
-    if (!verified) return c.json({ error: 'Email atau password salah' }, 401);
-    if (user.status !== 'active') return c.json({ error: 'Akun tidak aktif' }, 403);
+    if (!verified) {
+      console.log('[LOGIN HANDLER] 5. Verifikasi password GAGAL.');
+      return c.json({ error: 'Email atau password salah' }, 401);
+    }
+    console.log('[LOGIN HANDLER] 5. Verifikasi password berhasil.');
+
+    if (user.status !== 'active') {
+      console.log(`[LOGIN HANDLER] 6. Akun tidak aktif (Status: ${user.status}).`);
+      return c.json({ error: 'Akun tidak aktif' }, 403);
+    }
+    
+    console.log('[LOGIN HANDLER] 6. Akun aktif. Mencoba membuat token JWT...');
+    if (!env.JWT_SECRET) {
+      console.error('[LOGIN HANDLER] CRASH: env.JWT_SECRET tidak terdefinisi!');
+      throw new Error('JWT_SECRET environment variable tidak di-set.');
+    }
+    
     const payload = { sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 };
     const token = await sign(payload, env.JWT_SECRET, 'HS256');
+    console.log('[LOGIN HANDLER] 7. Token JWT berhasil dibuat.');
 
+    // ==========================================================
+    // INI ADALAH PERBAIKAN UNTUK ERROR 'Cannot read properties of undefined (reading 'get')'
+    // 'c.req.headers.get' diganti menjadi 'c.req.header'
+    // ==========================================================
     const isDev = (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') ||
-      (c.req.headers.get('host') || '').includes('localhost');
+      (c.req.header('host') || '').includes('localhost');
+    console.log('[LOGIN HANDLER] 8. Pengecekan isDev selesai.');
 
+    console.log('[LOGIN HANDLER] 9. Mencoba mengatur cookie.');
     setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isDev, sameSite: 'Lax', maxAge: 60 * 60 * 24 });
+    
+    console.log('[LOGIN HANDLER] SUKSES. Mengirim respons.');
     return c.json({ success: true, message: 'Login berhasil' });
+    
   } catch (e) {
     console.error('======================================');
     console.error('[LOGIN HANDLER CRASH]');
@@ -622,7 +666,7 @@ api.get('/debug/db', debugDbHandler);
    Fallback (API)
    ------------------------- */
 api.all('*', (c) => {
-  try { console.log('[API NO MATCH] method=', c.req.method, 'url=', c.req.url); } catch (e) {}
+  try { console.log(`[API NO MATCH] ${c.req.method} ${c.req.url}`); } catch (e) {}
   return c.json({ error: 'API Not Found' }, 404);
 });
 
