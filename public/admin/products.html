@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Admin - Produk</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -80,8 +80,9 @@
                     <!-- Stok (Hanya untuk tipe UNIQUE) -->
                     <div id="stock-section" class="hidden">
                         <label for="stock_items" class="block text-sm font-medium text-gray-700">Tambah Stok Unik (Kunci Lisensi, dll)</label>
-                        <textarea id="stock_items" name="stock_items" rows="4" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Tempel satu kunci per baris"></textarea>
-                        <p class="text-xs text-gray-500">Stok yang ada tidak akan ditampilkan. Ini hanya untuk *menambah* stok baru.</p>
+                        <textarea id="stock_items" name="stock_items" rows="6" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Tempel satu kunci per baris"></textarea>
+                        <p class="text-xs text-gray-500">Stok yang ada akan ditampilkan di form edit. Area ini hanya untuk menambah stok baru saat membuat/mengedit produk UNIQUE.</p>
+                        <div id="existing-stock-list" class="mt-2 text-xs text-gray-600"></div>
                     </div>
 
                 </div>
@@ -172,6 +173,8 @@
         const featuredImageUrlField = document.getElementById('image_url');
         const galleryPreview = document.getElementById('gallery-preview');
         const saveProductBtn = document.getElementById('save-product-btn');
+        const stockTextarea = document.getElementById('stock_items');
+        const existingStockList = document.getElementById('existing-stock-list');
         
         // --- State ---
         let imageManifest = [];
@@ -194,6 +197,8 @@
             galleryPreview.innerHTML = '';
             currentGallery = [];
             featuredImagePreview.src = 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+            existingStockList.innerHTML = '';
+            stockTextarea.value = '';
         }
         function openExplorer(target) {
             currentExplorerTarget = target;
@@ -224,7 +229,7 @@
                 categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
                 if (data) {
                     data.forEach(cat => {
-                        categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                        categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
                     });
                 }
             } catch (err) {
@@ -385,24 +390,38 @@
 
                 // Extract saved product id robustly
                 const resultJson = parsed.json;
-                const savedProductId = id || (resultJson && (resultJson.data?.id || resultJson.id || resultJson.results?.id || resultJson?.data?.last_row_id));
+                let savedProductId = id || resultJson?.id || resultJson?.data?.id;
+                // Support returning shape: { results: [ {id: ...} ] }
+                if (!savedProductId && resultJson?.results && Array.isArray(resultJson.results) && resultJson.results[0]) {
+                    savedProductId = resultJson.results[0].id || resultJson.results[0]?.insertId || resultJson.results[0]?.last_row_id;
+                }
+                // Support older meta.last_row_id shapes (if server returned meta):
+                if (!savedProductId && resultJson?.meta?.last_row_id) {
+                    savedProductId = resultJson.meta.last_row_id;
+                }
 
-                if (!savedProductId) {
-                    // try to find in nested shapes or meta
-                    if (resultJson && resultJson.results && Array.isArray(resultJson.results) && resultJson.results[0] && resultJson.results[0].id) {
-                        // e.g. returning results array
-                        // eslint-disable-next-line prefer-destructuring
-                        savedProductId = resultJson.results[0].id;
+                // If still not found and this was create, try to fetch last product by unique properties (fallback)
+                if (!savedProductId && !id) {
+                    // best-effort: lookup product by name+price+category
+                    try {
+                        const lookupQ = new URLSearchParams({ name: data.name || '', price: String(data.price || '') });
+                        const lookupRes = await fetch(`${API_PRODUCTS}?${lookupQ.toString()}`, { credentials: 'include' });
+                        if (lookupRes.ok) {
+                            const lookupParsed = await parseJsonResponse(lookupRes);
+                            const list = Array.isArray(lookupParsed.json) ? lookupParsed.json : (lookupParsed.json?.data || lookupParsed.json?.results || []);
+                            if (list && list.length > 0) {
+                                // find the first matching by exact name + price
+                                const match = list.find(p => p.name === data.name && Number(p.price) === Number(data.price));
+                                if (match) savedProductId = match.id;
+                            }
+                        }
+                    } catch (lookupErr) {
+                        console.warn('Lookup fallback failed', lookupErr);
                     }
                 }
 
-                if (!savedProductId) {
-                    // If still not found, for update we can use id, otherwise throw
-                    if (id) {
-                        // using existing id
-                    } else {
-                        throw new Error('ID produk yang tersimpan tidak ditemukan pada response server.');
-                    }
+                if (!savedProductId && !id) {
+                    throw new Error('ID produk yang tersimpan tidak ditemukan pada response server.');
                 }
 
                 const finalProductId = savedProductId || id;
@@ -419,7 +438,6 @@
                     if (!galleryRes.ok) {
                         const gMsg = galleryParsed.json?.error ?? galleryParsed.raw ?? `HTTP ${galleryRes.status}`;
                         console.warn('Gallery sync failed:', gMsg);
-                        // Non-fatal: warn user but continue
                         showMessage('Produk disimpan, tetapi gagal menyinkronkan galeri. Periksa log.', true);
                     }
                 } catch (gErr) {
@@ -428,7 +446,6 @@
                 }
 
                 // 6.3 Kirim Stok (jika ada dan tipe UNIQUE)
-                const stockTextarea = document.getElementById('stock_items');
                 let stockItems = [];
                 if (data.product_type === 'UNIQUE' && stockTextarea) {
                     stockItems = (stockTextarea.value || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -458,8 +475,7 @@
                 await loadProducts();
             } catch (err) {
                 console.error('Gagal menyimpan produk', err);
-                // err.message is guaranteed to be a string (we wrap non-strings above)
-                showMessage(`Gagal: ${err.message}`, true);
+                showMessage(`Gagal: ${err.message || String(err)}`, true);
             } finally {
                 saveProductBtn.disabled = false;
             }
@@ -482,7 +498,7 @@
                     const parsed = await parseJsonResponse(res);
                     // Support response being object product directly or { data: product }
                     const data = parsed.json?.data || parsed.json || {};
-                    if (!data) throw new Error('Produk tidak ditemukan');
+                    if (!data || !data.id) throw new Error('Produk tidak ditemukan');
 
                     // Isi form
                     formTitle.textContent = `Edit Produk: ${data.name}`;
@@ -496,9 +512,35 @@
                     productForm.querySelector('#image_url').value = data.image_url || '';
                     featuredImagePreview.src = data.image_url || 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
                     
-                    currentGallery = (data.gallery || []).map(img => (img.image_url || img));
+                    // Gallery: support array of { image_url } or array of strings
+                    currentGallery = (data.gallery || []).map(img => (typeof img === 'string' ? img : (img.image_url || img)));
                     renderGalleryPreview();
+
+                    // If UNIQUE product, load existing stock items to show in UI
                     toggleProductTypeFields();
+                    if (data.product_type === 'UNIQUE') {
+                        try {
+                            const stockRes = await fetch(`${API_PRODUCTS}/${data.id}/stock`, { credentials: 'include' });
+                            if (stockRes.ok) {
+                                const stockParsed = await parseJsonResponse(stockRes);
+                                const stockList = Array.isArray(stockParsed.json) ? stockParsed.json : (stockParsed.json?.data || stockParsed.json?.results || []);
+                                if (stockList && stockList.length > 0) {
+                                    // show existing stock contents in a small list (read-only)
+                                    existingStockList.innerHTML = `<strong>Stok tersedia:</strong><ul class="list-disc pl-5 mt-1">${stockList.map(s => `<li>${escapeHtml(s.content)}</li>`).join('')}</ul>`;
+                                } else {
+                                    existingStockList.innerHTML = '<em class="text-xs text-gray-500">Belum ada stok unik.</em>';
+                                }
+                            } else {
+                                existingStockList.innerHTML = '<em class="text-xs text-gray-500">Gagal memuat stok.</em>';
+                            }
+                        } catch (stockErr) {
+                            console.warn('Failed to load stock for edit', stockErr);
+                            existingStockList.innerHTML = '<em class="text-xs text-gray-500">Gagal memuat stok.</em>';
+                        }
+                    } else {
+                        existingStockList.innerHTML = '';
+                    }
+
                     openModal();
                 } catch (err) {
                     alert(`Gagal memuat data produk: ${err.message}`);
@@ -531,6 +573,8 @@
             currentGallery = [];
             galleryPreview.innerHTML = '';
             featuredImagePreview.src = 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+            existingStockList.innerHTML = '';
+            stockTextarea.value = '';
         }
 
         // basic escape helper
