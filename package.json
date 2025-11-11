@@ -9,8 +9,7 @@
     "deploy": "npm run build && wrangler pages deploy ."
   },
   "dependencies": {
-    "hono": "^4.4.10",
-    "zod": "^3.23.8"
+    "hono": "^4.4.10"
   },
   "devDependencies": {
     "wrangler": "^3.60.3"
