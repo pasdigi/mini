@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "include": [
+    "/product/*"
+  ],
+  "exclude": [
+    "/product.html"
+  ],
+  "fallback": "/product.html"
+}
