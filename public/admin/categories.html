@@ -72,6 +72,7 @@
     </div>
 
     <script>
+        // Endpoint admin categories - keep /api/admin/... which matches the function mapping.
         const API_URL = '/api/admin/categories';
         const form = document.getElementById('category-form');
         const tableBody = document.getElementById('categories-table');
@@ -83,10 +84,10 @@
         const messageEl = document.getElementById('form-message');
 
         // Fungsi untuk menampilkan pesan
-        function showMessage(text, isError = false) {
+        function showMessage(text, isError = false, timeout = 3000) {
             messageEl.textContent = text;
             messageEl.className = isError ? 'text-sm mt-3 text-red-600' : 'text-sm mt-3 text-green-600';
-            setTimeout(() => messageEl.textContent = '', 3000);
+            if (timeout > 0) setTimeout(() => messageEl.textContent = '', timeout);
         }
 
         // Fungsi Reset Form
@@ -97,18 +98,53 @@
             cancelBtn.classList.add('hidden');
         }
 
+        // Helper: robust JSON parsing and response checking
+        async function parseJsonResponse(res) {
+            const text = await res.text();
+            try {
+                return { ok: res.ok, status: res.status, json: JSON.parse(text) };
+            } catch (e) {
+                // not valid JSON
+                return { ok: res.ok, status: res.status, json: null, raw: text };
+            }
+        }
+
         // 1. READ (Load Kategori)
         async function loadCategories() {
             try {
-                const res = await fetch(API_URL);
-                const { data } = await res.json();
+                const res = await fetch(API_URL, { credentials: 'include' });
+                if (!res.ok) {
+                    // try to get text body for clearer error
+                    const txt = await res.text();
+                    if (res.status === 401 || res.status === 403) {
+                        showMessage('Akses terlarang atau session habis. Silakan login ulang.', true, 6000);
+                        // optionally redirect to login page:
+                        // window.location.href = '/admin/login.html';
+                    }
+                    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+                }
+
+                // parse JSON safely
+                const parsed = await parseJsonResponse(res);
+                if (parsed.json === null) {
+                    throw new Error('Response bukan JSON: ' + (parsed.raw || 'empty'));
+                }
+
+                // support various server shapes: array || { data: [...] } || { results: [...] }
+                const data = Array.isArray(parsed.json) ? parsed.json
+                    : (parsed.json.data || parsed.json.results || parsed.json.items || []);
+
                 tableBody.innerHTML = '';
                 if (data && data.length > 0) {
                     data.forEach(cat => {
+                        // defensive: ensure id/name/slug exist
+                        const id = cat.id ?? '';
+                        const name = cat.name ?? '';
+                        const slug = cat.slug ?? '';
                         tableBody.innerHTML += `
-                            <tr data-id="${cat.id}" data-name="${cat.name}" data-slug="${cat.slug}">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${cat.name}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${cat.slug}</td>
+                            <tr data-id="${id}" data-name="${escapeHtml(name)}" data-slug="${escapeHtml(slug)}">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(name)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(slug)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button class="text-blue-600 hover:text-blue-900 edit-btn">Edit</button>
                                     <button class="text-red-600 hover:text-red-900 ml-4 delete-btn">Hapus</button>
@@ -120,7 +156,9 @@
                     tableBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Belum ada kategori.</td></tr>';
                 }
             } catch (err) {
+                console.error('Gagal load kategori', err);
                 tableBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Gagal memuat data.</td></tr>';
+                showMessage(`Gagal memuat kategori: ${err.message}`, true, 6000);
             }
         }
 
@@ -128,8 +166,13 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = categoryIdField.value;
-            const name = nameField.value;
-            const slug = slugField.value;
+            const name = nameField.value.trim();
+            const slug = slugField.value.trim();
+
+            if (!name || !slug) {
+                showMessage('Nama dan slug wajib diisi', true);
+                return;
+            }
             
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${API_URL}/${id}` : API_URL;
@@ -137,17 +180,29 @@
             try {
                 const res = await fetch(url, {
                     method: method,
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, slug })
                 });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error);
-                
-                showMessage(result.message || 'Sukses!', false);
+
+                const parsed = await parseJsonResponse(res);
+                if (!res.ok) {
+                    const bodyMsg = parsed.json?.error || parsed.json?.message || parsed.raw || res.statusText;
+                    if (res.status === 401 || res.status === 403) {
+                        showMessage('Akses terlarang / session habis. Silakan login ulang.', true, 6000);
+                        return;
+                    }
+                    throw new Error(bodyMsg || `HTTP ${res.status}`);
+                }
+
+                const result = parsed.json;
+                // Some endpoints return created object, some return message.
+                showMessage(result?.message || 'Berhasil menyimpan kategori', false);
                 resetForm();
-                loadCategories();
+                await loadCategories();
             } catch (err) {
-                showMessage(`Gagal: ${err.message}`, true);
+                console.error('Gagal simpan kategori', err);
+                showMessage(`Gagal: ${err.message}`, true, 6000);
             }
         });
 
@@ -165,28 +220,47 @@
             if (e.target.classList.contains('edit-btn')) {
                 formTitle.textContent = 'Edit Kategori';
                 categoryIdField.value = id;
-                nameField.value = row.dataset.name;
-                slugField.value = row.dataset.slug;
+                nameField.value = row.dataset.name || '';
+                slugField.value = row.dataset.slug || '';
                 cancelBtn.classList.remove('hidden');
-                window.scrollTo(0, 0); // Scroll ke atas
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
             }
             
             // Tombol DELETE
             if (e.target.classList.contains('delete-btn')) {
-                if (!confirm(`Yakin ingin menghapus kategori "${row.dataset.name}"?`)) return;
+                const catName = row.dataset.name || '';
+                if (!confirm(`Yakin ingin menghapus kategori "${catName}"?`)) return;
 
                 try {
-                    const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-                    const result = await res.json();
-                    if (!res.ok) throw new Error(result.error);
+                    const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', credentials: 'include' });
+                    const parsed = await parseJsonResponse(res);
+                    if (!res.ok) {
+                        const bodyMsg = parsed.json?.error || parsed.json?.message || parsed.raw || res.statusText;
+                        if (res.status === 401 || res.status === 403) {
+                            showMessage('Akses terlarang / session habis. Silakan login ulang.', true, 6000);
+                            return;
+                        }
+                        throw new Error(bodyMsg || `HTTP ${res.status}`);
+                    }
 
-                    showMessage(result.message, false);
-                    loadCategories();
+                    const result = parsed.json;
+                    showMessage(result?.message || 'Kategori dihapus', false);
+                    await loadCategories();
                 } catch (err) {
-                    showMessage(`Gagal menghapus: ${err.message}`, true);
+                    console.error('Gagal hapus kategori', err);
+                    showMessage(`Gagal menghapus: ${err.message}`, true, 6000);
                 }
             }
         });
+
+        // Small helper to escape html when injecting into table
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str ?? '';
+            return str.replace(/[&<>"']/g, function(m) {
+                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+            });
+        }
 
         // Load awal
         loadCategories();
