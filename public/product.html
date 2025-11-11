@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Produk — Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .thumb { cursor: pointer; width: 64px; height: 48px; object-fit: cover; border-radius: 6px; }
+    .thumb.active { outline: 2px solid #2563eb; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="container mx-auto p-6 max-w-4xl">
+    <div id="product-area" class="bg-white rounded-lg shadow p-6">
+      <div id="loader">Memuat produk...</div>
+      <div id="product-content" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="relative">
+              <img id="main-image" src="" alt="Gambar produk" class="w-full h-80 object-cover rounded" />
+              <button id="prev-btn" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full">◀</button>
+              <button id="next-btn" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full">▶</button>
+            </div>
+            <div class="flex gap-2 mt-3 overflow-x-auto" id="thumbnails"></div>
+          </div>
+
+          <div>
+            <h1 id="p-name" class="text-2xl font-bold"></h1>
+            <p id="p-category" class="text-sm text-gray-600 mb-3"></p>
+            <p id="p-price" class="text-xl font-semibold text-blue-600 mb-4"></p>
+            <p id="p-desc" class="text-gray-700"></p>
+
+            <div id="buy-area" class="mt-6">
+              <button id="buy-btn" class="bg-green-600 text-white px-4 py-2 rounded">Beli / Checkout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // extract slug from pathname: /product/<slug> or /product/<slug>/
+    function getSlugFromPath() {
+      const parts = location.pathname.replace(/\/+$/, '').split('/');
+      // last segment after /product
+      if (parts.length >= 3 && parts[1] === 'product') return parts.slice(2).join('/');
+      return null;
+    }
+
+    async function fetchProductBySlug(slug) {
+      const res = await fetch('/api/store/products/slug/' + encodeURIComponent(slug));
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function setMainImage(url) {
+      const img = document.getElementById('main-image');
+      img.src = url || 'https://placehold.co/600x400/e2e8f0/cbd5e0?text=No+Image';
+    }
+
+    function renderThumbnails(gallery) {
+      const thumbs = document.getElementById('thumbnails');
+      thumbs.innerHTML = '';
+      if (!gallery || gallery.length === 0) return;
+      gallery.forEach((u, i) => {
+        const t = document.createElement('img');
+        t.src = u;
+        t.className = 'thumb ' + (i === 0 ? 'active' : '');
+        t.dataset.index = i;
+        t.addEventListener('click', () => {
+          setMainImage(u);
+          document.querySelectorAll('.thumb').forEach(el => el.classList.remove('active'));
+          t.classList.add('active');
+          currentIndex = i;
+        });
+        thumbs.appendChild(t);
+      });
+    }
+
+    let currentIndex = 0;
+    document.getElementById('prev-btn').addEventListener('click', () => {
+      if (!window._gallery || window._gallery.length === 0) return;
+      currentIndex = (currentIndex - 1 + window._gallery.length) % window._gallery.length;
+      setMainImage(window._gallery[currentIndex]);
+      document.querySelectorAll('.thumb').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.thumb')[currentIndex]?.classList.add('active');
+    });
+    document.getElementById('next-btn').addEventListener('click', () => {
+      if (!window._gallery || window._gallery.length === 0) return;
+      currentIndex = (currentIndex + 1) % window._gallery.length;
+      setMainImage(window._gallery[currentIndex]);
+      document.querySelectorAll('.thumb').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.thumb')[currentIndex]?.classList.add('active');
+    });
+
+    (async function init() {
+      const slug = getSlugFromPath();
+      if (!slug) {
+        document.getElementById('loader').textContent = 'Slug produk tidak disediakan.';
+        return;
+      }
+      try {
+        const p = await fetchProductBySlug(slug);
+        window._gallery = (p.gallery && p.gallery.length) ? p.gallery : [(p.image_url || p.image || '')];
+        currentIndex = 0;
+        document.getElementById('p-name').textContent = p.name || '';
+        document.getElementById('p-category').textContent = p.category_name || '';
+        document.getElementById('p-price').textContent = p.price ? ('Rp ' + new Intl.NumberFormat('id-ID').format(Number(p.price))) : '';
+        document.getElementById('p-desc').textContent = p.description || '';
+        setMainImage(window._gallery[0] || '');
+        renderThumbnails(window._gallery);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('product-content').classList.remove('hidden');
+      } catch (err) {
+        document.getElementById('loader').textContent = 'Gagal memuat produk: ' + (err.message || err);
+        console.error(err);
+      }
+    })();
+  </script>
+</body>
+</html>
