@@ -2,19 +2,17 @@
  * functions/[[path]].js
  *
  * Hono backend LENGKAP untuk Cloudflare Pages, mengikuti arsitektur file tunggal.
- * - Melayani file statis dari /public
  * - Menangani semua rute API di bawah /api
- * - SEMUA VALIDATOR ZOD DIHAPUS. Validasi dilakukan secara manual.
+ * - SEMUA ZOD DAN VALIDATOR DIHAPUS. Validasi manual digunakan.
+ * - TIDAK ADA serveStatic. Routing ditangani oleh _routes.json
  */
 
 import { Hono } from 'hono';
 import { handle } from 'hono/cloudflare-pages';
 import { setCookie, getCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
-// Impor BARU: untuk menyajikan file statis dari /public
-import { serveStatic } from 'hono/cloudflare-pages';
 
-// --- ZOD DIHAPUS ---
+// --- ZOD DAN SEMUA SKEMA DIHAPUS ---
 
 // --- Inisialisasi Hono (Mencontoh file Anda) ---
 const app = new Hono();
@@ -207,7 +205,7 @@ async function loginHandler(c) {
   }
   
   // Validasi manual (ZOD DIHAPUS)
-  if (!body.email || !body.password) {
+  if (!body || !body.email || !body.password) {
     return c.json({ error: 'Email dan password wajib diisi' }, 400);
   }
 
@@ -232,7 +230,7 @@ async function loginHandler(c) {
     }
 
     if (!verified) return c.json({ error: 'Email atau password salah' }, 401);
-    if (user.status !== 'active') return c.json({ error: 'Akun tidak aktif' }, 403);
+    if (user.status !== 'active') return c.json({ error: 'Akun nonaktif' }, 403);
     const payload = { sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 };
     const token = await sign(payload, env.JWT_SECRET, 'HS256');
 
@@ -602,10 +600,11 @@ api.all('*', (c) => {
 });
 
 /* -------------------------
-   RUTE FILE STATIS (BARU)
-   Menyajikan file dari /public untuk semua rute non-API
+   RUTE FILE STATIS (DIHAPUS)
+   Cloudflare Pages akan menangani ini secara otomatis
+   karena ada folder /public dan _routes.json
    ------------------------- */
-app.get('*', serveStatic({ root: './public' }));
+// app.get('*', serveStatic({ root: './public' })); // <-- DIHAPUS
 
 
 /* -------------------------
