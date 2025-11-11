@@ -28,7 +28,6 @@
 
     <main>
       <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <!-- skeletons while loading -->
         <template id="skeleton">
           <div class="animate-pulse p-4 bg-white rounded-lg shadow">
             <div class="w-full h-40 bg-gray-200 rounded-md mb-3"></div>
@@ -49,38 +48,27 @@
   </div>
 
   <script>
-    // Utility: escape HTML for safe insertion
     function escapeHtml(str) {
       if (typeof str !== 'string') return str == null ? '' : String(str);
       return str.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
-    // Robust parse helper for JSON responses
     async function parseJsonResponse(res) {
       const txt = await res.text();
-      try {
-        return { ok: res.ok, status: res.status, json: JSON.parse(txt), raw: txt };
-      } catch (e) {
-        return { ok: res.ok, status: res.status, json: null, raw: txt };
-      }
+      try { return { ok: res.ok, json: JSON.parse(txt), raw: txt }; }
+      catch { return { ok: res.ok, json: null, raw: txt }; }
     }
 
     const API_PRODUCTS = '/api/store/products';
-
     const productListEl = document.getElementById('product-list');
-    const loadingContainer = document.getElementById('loading-container');
     const skeletonTmpl = document.getElementById('skeleton');
     const errorArea = document.getElementById('error-area');
     const searchInput = document.getElementById('search');
     const categoryPills = document.getElementById('category-pills');
     const resultCount = document.getElementById('result-count');
 
-    // UI state
-    let products = []; // original list
-    let filtered = []; // filtered list (by category / search)
-    let categories = ['Semua']; // category names
+    let products = [], filtered = [], categories = ['Semua'];
 
-    // Render helpers
     function renderSkeletons(count = 6) {
       productListEl.innerHTML = '';
       for (let i = 0; i < count; i++) {
@@ -96,13 +84,13 @@
         resultCount.textContent = '0 produk';
         return;
       }
-
       list.forEach(p => {
         const img = escapeHtml(p.image_url || 'https://placehold.co/600x400/e2e8f0/cbd5e0?text=Produk');
         const name = escapeHtml(p.name || '—');
         const category = escapeHtml(p.category_name || 'Tanpa Kategori');
         const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
-        const href = `/product.html?id=${encodeURIComponent(p.id)}`;
+        const slugOrId = encodeURIComponent(p.slug || p.id);
+        const href = `/product/${slugOrId}`;
 
         const card = document.createElement('article');
         card.className = 'bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-200 hover:scale-105';
@@ -128,7 +116,6 @@
         `;
         productListEl.appendChild(card);
       });
-
       resultCount.textContent = `${list.length} produk`;
     }
 
@@ -140,43 +127,27 @@
         btn.textContent = cat;
         btn.className = 'px-3 py-1 rounded-full text-sm border border-gray-200 bg-white hover:bg-gray-50 whitespace-nowrap';
         if (cat === 'Semua') btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-
         btn.addEventListener('click', () => {
-          // update active styles
           Array.from(categoryPills.children).forEach(c => c.classList.remove('bg-blue-600','text-white','border-blue-600'));
           btn.classList.add('bg-blue-600','text-white','border-blue-600');
           filterByCategory(cat);
         });
-
         categoryPills.appendChild(btn);
       });
     }
 
-    // Filtering
     function filterByCategory(cat) {
-      if (cat === 'Semua') {
-        applySearch(products);
-      } else {
-        applySearch(products.filter(p => (p.category_name || 'Tanpa Kategori') === cat));
-      }
+      if (cat === 'Semua') applySearch(products);
+      else applySearch(products.filter(p => (p.category_name || 'Tanpa Kategori') === cat));
     }
 
     function applySearch(list) {
       const q = (searchInput.value || '').trim().toLowerCase();
-      if (!q) {
-        filtered = list.slice();
-      } else {
-        filtered = list.filter(p => {
-          const name = (p.name || '').toLowerCase();
-          const desc = (p.description || '').toLowerCase();
-          const cat = (p.category_name || '').toLowerCase();
-          return name.includes(q) || desc.includes(q) || cat.includes(q);
-        });
-      }
+      if (!q) filtered = list.slice();
+      else filtered = list.filter(p => ((p.name||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category_name||'').toLowerCase().includes(q)));
       renderProducts(filtered);
     }
 
-    // Fetch products from API and initialize UI
     async function loadProducts() {
       errorArea.classList.add('hidden');
       renderSkeletons(6);
@@ -186,47 +157,24 @@
         if (!res.ok) {
           console.error('Load products error:', parsed.raw || parsed.json || res.status);
           productListEl.innerHTML = '<div class="col-span-full p-6 bg-white rounded-lg shadow text-center text-red-500">Gagal memuat produk.</div>';
-          errorArea.classList.remove('hidden');
-          resultCount.textContent = '0 produk';
-          return;
+          errorArea.classList.remove('hidden'); resultCount.textContent = '0 produk'; return;
         }
-
-        // Accept multiple shapes: array, { data: [...] }, { results: [...] }
         const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json && (parsed.json.data || parsed.json.results || parsed.json.items)) || [];
-        products = data.map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          image_url: p.image_url,
-          category_name: p.category_name || (p.category || '') // tolerate different shapes
-        }));
-
-        // Build categories from product list (unique)
+        products = data.map(p => ({ id: p.id, slug: p.slug, name: p.name, description: p.description, price: p.price, image_url: p.image_url, category_name: p.category_name || p.category }));
         const set = new Set();
         products.forEach(p => set.add(p.category_name || 'Tanpa Kategori'));
-        categories = ['Semua', ...Array.from(set).filter(Boolean).sort((a,b) => a.localeCompare(b))];
-
+        categories = ['Semua', ...Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b))];
         renderCategoryPills();
         applySearch(products);
       } catch (err) {
         console.error('Unexpected error loading products', err);
         productListEl.innerHTML = '<div class="col-span-full p-6 bg-white rounded-lg shadow text-center text-red-500">Gagal memuat produk.</div>';
-        errorArea.classList.remove('hidden');
-        resultCount.textContent = '0 produk';
+        errorArea.classList.remove('hidden'); resultCount.textContent = '0 produk';
       }
     }
 
-    // Wire up search box (debounced)
-    let searchTimer = null;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        applySearch(products);
-      }, 250);
-    });
+    searchInput.addEventListener('input', (() => { let t; return () => { clearTimeout(t); t = setTimeout(()=>applySearch(products), 250); }; })());
 
-    // Initial load
     loadProducts();
   </script>
 </body>
