@@ -192,7 +192,7 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
         role: user.role,
         exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 1 hari
     };
-    const token = await sign(payload, env.JWT_SECRET);
+    const token = await sign(payload, env.JWT_SECRET, 'HS256');
 
     setCookie(c, 'auth_token', token, {
         path: '/',
