@@ -130,7 +130,7 @@ const authMiddleware = async (c, next) => {
         return c.json({ error: 'Tidak terotentikasi' }, 401);
     }
     try {
-        const payload = await verify(token, env.JWT_SECRET);
+        const payload = await verify(token, env.JWT_SECRET, 'HS256');
         const user = await env.DB.prepare("SELECT id, role, status FROM users WHERE id = ?")
             .bind(payload.sub)
             .first();
