@@ -203,10 +203,26 @@
         // --- 1. Load Data Awal (Kategori & Produk) ---
         async function loadCategories() {
             try {
-                const res = await fetch(API_CATEGORIES);
-                const { data } = await res.json();
+                // Penting: kirim cookie otentikasi (jika ada)
+                const res = await fetch(API_CATEGORIES, { credentials: 'include' });
+                if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(`HTTP ${res.status}: ${txt}`);
+                }
+
+                // Toleransi bentuk response: bisa array langsung atau object { data: [...] }
+                let json;
+                try {
+                    json = await res.json();
+                } catch (parseErr) {
+                    // Jika gagal parse JSON, ambil raw text untuk debugging
+                    const raw = await res.text();
+                    throw new Error('JSON parse error. Response text: ' + raw);
+                }
+
+                const data = Array.isArray(json) ? json : (json.data || json.results || []);
                 categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-                if (data) {
+                if (data && data.length > 0) {
                     data.forEach(cat => {
                         categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
                     });
@@ -220,8 +236,12 @@
         async function loadProducts() {
             const tableBody = document.getElementById('products-table');
             try {
-                const res = await fetch(API_PRODUCTS);
-                const { data } = await res.json();
+                const res = await fetch(API_PRODUCTS, { credentials: 'include' });
+                if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(`HTTP ${res.status}: ${txt}`);
+                }
+                const data = await res.json();
                 tableBody.innerHTML = '';
                 if (data && data.length > 0) {
                     data.forEach(p => {
@@ -242,6 +262,7 @@
                     tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Belum ada produk.</td></tr>';
                 }
             } catch (err) {
+                console.error('Gagal load produk', err);
                 tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Gagal memuat data.</td></tr>';
             }
         }
@@ -341,26 +362,29 @@
                 const res = await fetch(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify(data)
                 });
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.error);
+                if (!res.ok) throw new Error(result.error || JSON.stringify(result));
                 
-                const savedProductId = id || result.data.id;
+                const savedProductId = id || result.data?.id || result.id || result.id;
                 
                 // 6.2 Kirim data Galeri
                 await fetch(`${API_PRODUCTS}/${savedProductId}/gallery`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ images: currentGallery })
                 });
 
                 // 6.3 Kirim Stok (jika ada)
-                const stockItems = data.stock_items.split('\n').filter(Boolean); // Pecah per baris
+                const stockItems = (data.stock_items || '').split('\n').map(s => s.trim()).filter(Boolean); // Pecah per baris
                 if (data.product_type === 'UNIQUE' && stockItems.length > 0) {
                     await fetch(`${API_PRODUCTS}/${savedProductId}/stock`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
                         body: JSON.stringify({ stock_items: stockItems })
                     });
                 }
@@ -382,7 +406,11 @@
             // Tombol EDIT
             if (e.target.classList.contains('edit-btn')) {
                 try {
-                    const res = await fetch(`${API_PRODUCTS}/${id}`);
+                    const res = await fetch(`${API_PRODUCTS}/${id}`, { credentials: 'include' });
+                    if (!res.ok) {
+                        const txt = await res.text();
+                        throw new Error(`HTTP ${res.status}: ${txt}`);
+                    }
                     const { data } = await res.json();
                     if (!data) throw new Error('Produk tidak ditemukan');
 
@@ -398,7 +426,7 @@
                     productForm.querySelector('#image_url').value = data.image_url;
                     featuredImagePreview.src = data.image_url || 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
                     
-                    currentGallery = data.gallery.map(img => img.image_url);
+                    currentGallery = (data.gallery || []).map(img => img.image_url || img);
                     renderGalleryPreview();
                     toggleProductTypeFields();
                     openModal();
@@ -412,7 +440,7 @@
                 if (!confirm(`Yakin ingin menghapus produk ini? (Stok & Galeri juga akan terhapus)`)) return;
 
                 try {
-                    const res = await fetch(`${API_PRODUCTS}/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`${API_PRODUCTS}/${id}`, { method: 'DELETE', credentials: 'include' });
                     const result = await res.json();
                     if (!res.ok) throw new Error(result.error);
                     showMessage(result.message, false);
@@ -424,6 +452,15 @@
         });
 
         // --- 7. Inisialisasi ---
+        // Fungsi resetForm (dipanggil di addNewBtn) - pastikan ada
+        function resetForm() {
+            productForm.reset();
+            productIdField.value = '';
+            currentGallery = [];
+            galleryPreview.innerHTML = '';
+            featuredImagePreview.src = 'https://placehold.co/400x300/e2e8f0/cbd5e0?text=Pilih';
+        }
+
         loadCategories();
         loadProducts();
         loadImageManifest();
