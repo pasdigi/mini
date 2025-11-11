@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Admin Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -10,22 +10,23 @@
 
     <div class="flex items-center justify-center min-h-screen">
         <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-            <h2 class="text-2xl font-bold text-center text-gray-800">
-                Admin Login
-            </h2>
-            <form id="login-form" class="space-y-6">
+            <h2 class="text-2xl font-bold text-center text-gray-800">Admin Login</h2>
+
+            <form id="login-form" class="space-y-6" autocomplete="off">
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
                     <input type="email" id="email" name="email" required
                            class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="admin@example.com">
+                           placeholder="admin@example.com" />
                 </div>
+
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
                     <input type="password" id="password" name="password" required
                            class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="••••••••">
+                           placeholder="••••••••" />
                 </div>
+
                 <div>
                     <button type="submit" id="submit-btn"
                             class="w-full py-2 px-4 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -33,66 +34,109 @@
                     </button>
                 </div>
             </form>
+
             <p id="message" class="text-sm text-center"></p>
         </div>
     </div>
 
     <script>
+    (function () {
         const loginForm = document.getElementById('login-form');
         const emailField = document.getElementById('email');
         const passwordField = document.getElementById('password');
         const messageEl = document.getElementById('message');
         const submitBtn = document.getElementById('submit-btn');
 
+        // Helper: show message
+        function showMessage(text, type = 'info') {
+            // type: 'info' | 'success' | 'error'
+            messageEl.textContent = text;
+            messageEl.className = 'text-sm text-center ' +
+                (type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-700'));
+        }
+
+        // Helper: robust parse JSON (returns { ok, status, json, raw })
+        async function parseJsonResponse(res) {
+            const txt = await res.text();
+            try {
+                return { ok: res.ok, status: res.status, json: JSON.parse(txt), raw: txt };
+            } catch (e) {
+                return { ok: res.ok, status: res.status, json: null, raw: txt };
+            }
+        }
+
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            // Bersihkan pesan error sebelumnya
-            messageEl.textContent = '';
-            messageEl.className = 'text-sm text-center';
-            
-            // Nonaktifkan tombol
+
+            // clear previous message
+            showMessage('', 'info');
+
+            // disable button to prevent double submit
             submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Memproses...';
 
-            const email = emailField.value;
+            const email = emailField.value.trim();
             const password = passwordField.value;
 
+            if (!email || !password) {
+                showMessage('Email dan password wajib diisi', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                return;
+            }
+
             try {
+                // Use credentials: 'include' so cookie set by server is stored (auth cookie)
+                // The backend supports both /login and /api/login; we use /api/login as canonical.
                 const res = await fetch('/api/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
-                const result = await res.json();
+                const parsed = await parseJsonResponse(res);
 
                 if (!res.ok) {
-                    // Tampilkan error dari API (cth: "Email atau password salah")
-                    throw new Error(result.error || 'Terjadi kesalahan');
+                    // If server returned JSON with error field, use it. Otherwise use raw text or status.
+                    const errMsg = parsed.json?.error || parsed.json?.message || parsed.raw || `HTTP ${res.status}`;
+                    // If unauthorized, give specific hint
+                    if (res.status === 401) {
+                        showMessage(errMsg || 'Email atau password salah', 'error');
+                    } else if (res.status === 403) {
+                        showMessage(errMsg || 'Akun tidak aktif atau akses ditolak', 'error');
+                    } else {
+                        showMessage(errMsg || 'Terjadi kesalahan saat login', 'error');
+                    }
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                    return;
                 }
 
-                // Sukses
-                messageEl.textContent = 'Login berhasil! Mengarahkan ke dashboard...';
-                messageEl.className = 'text-sm text-center text-green-600';
-                
-                // Arahkan ke dashboard admin
-                // API Anda akan mengatur cookie secara otomatis
-                window.location.href = '/admin/dashboard.html'; // atau /admin/dashboard.html
+                // Success path
+                const result = parsed.json;
+                showMessage('Login berhasil! Mengarahkan ke dashboard...', 'success');
+
+                // After a brief delay give time for cookie to be set in browser by server
+                setTimeout(() => {
+                    // Redirect to admin dashboard
+                    // Use absolute path to be explicit
+                    window.location.href = '/admin/dashboard.html';
+                }, 600);
 
             } catch (err) {
-                // Tampilkan pesan error
-                messageEl.textContent = err.message;
-                messageEl.className = 'text-sm text-center text-red-600';
-                
-                // Aktifkan kembali tombol
+                console.error('Login request failed', err);
+                showMessage(err.message || 'Gagal terhubung ke server', 'error');
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Login';
+                submitBtn.textContent = originalText;
             }
         });
-    </script>
 
+        // UX: pressing Enter on inputs will submit the form; nothing else needed.
+        // Note on development: if you're testing on http://localhost (no TLS), cookies set with secure: true won't be stored.
+        // If login seems successful but session not persisted, check server cookie options (secure/sameSite) for dev environment.
+    })();
+    </script>
 </body>
 </html>
