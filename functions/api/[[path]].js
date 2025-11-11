@@ -101,7 +101,6 @@ const productSchema = z.object({
   digital_content: z.string().optional().nullable(),
   image_url: z.string().optional().nullable(),
   category_id: z.number().int().optional().nullable(),
-  // --- PERBAIKAN: Menambahkan is_active agar konsisten ---
   is_active: z.boolean().optional().default(true),
 });
 
@@ -231,7 +230,6 @@ app.get('/store/products', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
     try {
-        // --- PERBAIKAN: Hanya tampilkan produk dengan is_active = 1 ---
         const { results } = await env.DB.prepare(
             `SELECT p.id, p.name, p.price, p.image_url, c.name as category_name 
              FROM products p
@@ -253,7 +251,6 @@ app.get('/store/products/:id', async (c) => {
     const env = c.env;
     const id = c.req.param('id');
     try {
-        // --- PERBAIKAN: Hanya tampilkan produk dengan is_active = 1 ---
         const product = await env.DB.prepare(
             `SELECT p.id, p.name, p.price, p.description, p.image_url, c.name as category_name
              FROM products p
@@ -286,7 +283,6 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
     const body = c.req.valid('json'); 
     const now = Math.floor(Date.now() / 1000);
 
-    // --- PERBAIKAN: Hanya izinkan checkout untuk produk is_active = 1 ---
     const product = await env.DB.prepare("SELECT id, name, price, product_type FROM products WHERE id = ? AND is_active = 1")
         .bind(body.product_id)
         .first();
@@ -340,7 +336,7 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
             return c.json({ error: 'Gagal menyimpan order' }, 500);
         }
         
-        // 4. --- PERBAIKAN: Kunci Stok (Atomic Race Condition Fix) ---
+        // 4. Kunci Stok (Atomic Race Condition Fix)
         if (product.product_type === 'UNIQUE') {
             // 4a. Cari stok yang tersedia
             const stock = await env.DB.prepare(
@@ -353,7 +349,6 @@ app.post('/store/checkout', zValidator('json', checkoutSchema), async (c) => {
             }
             
             // 4b. Coba kunci stok.id spesifik, tapi pastikan masih is_sold = 0
-            // --- KOREKSI: Menghapus karakter '_' yang tersasar ---
             const { changes } = await env.DB.prepare(
                 "UPDATE product_stock_unique SET is_sold = 1, order_id = ? WHERE id = ? AND is_sold = 0"
             ).bind(newOrderId, stock.id).run();
@@ -457,7 +452,6 @@ app.post('/webhook/paspay', zValidator('json', paspayWebhookSchema), async (c) =
 
 
 // --- Rute Admin (Perlu Auth) ---
-// --- PERBAIKAN: Mengaktifkan middleware keamanan untuk Admin ---
 const admin = app.use('/admin/*', authMiddleware, adminMiddleware);
 
 /**
@@ -495,7 +489,6 @@ admin.delete('/categories/:id', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
     const id = c.req.param('id');
-    // TODO: Cek dulu jika ada produk yang menggunakan kategori ini
     await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
     return c.json({ success: true, message: 'Kategori dihapus' });
 });
@@ -529,7 +522,6 @@ admin.get('/products/:id', async (c) => {
     return c.json({ ...product, gallery: gallery || [] });
 });
 
-// --- PERBAIKAN: Rute POST yang rusak ---
 admin.post('/products', zValidator('json', productSchema), async (c) => {
     /** @type {Bindings} */
     const env = c.env;
@@ -552,7 +544,6 @@ admin.post('/products', zValidator('json', productSchema), async (c) => {
     return c.json(results[0], 201);
 });
 
-// --- PERBAIKAN: Rute PUT yang rusak ---
 admin.put('/products/:id', zValidator('json', productSchema), async (c) => {
     /** @type {Bindings} */
     const env = c.env;
@@ -574,12 +565,11 @@ admin.put('/products/:id', zValidator('json', productSchema), async (c) => {
         body.category_id || null,
         body.is_active ? 1 : 0,
         id
-    ).all();
+_    ).all();
     
     return c.json(results[0]);
 });
 
-// --- PERBAIKAN: Rute DELETE dengan batch() ---
 admin.delete('/products/:id', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
@@ -600,13 +590,12 @@ admin.delete('/products/:id', async (c) => {
 /**
  * Rute Admin: CRUD Stok (untuk Tipe UNIQUE)
  */
-// --- PERBAIKAN: Mengganti env.D1.prepare menjadi env.DB.prepare ---
 admin.get('/products/:id/stock', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
     const id = c.req.param('id');
     const { results } = await env.DB.prepare(
-      TOLONG"SELECT * FROM product_stock_unique WHERE product_id = ? ORDER BY id DESC"
+        "SELECT * FROM product_stock_unique WHERE product_id = ? ORDER BY id DESC"
     ).bind(id).all();
     return c.json(results || []);
 });
@@ -617,7 +606,6 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
-    // --- KOREKSI: Menghapus karakter 's' yang tersasar ---
 
     // Pastikan produk ada dan tipenya 'UNIQUE'
     const product = await env.DB.prepare("SELECT id FROM products WHERE id = ? AND product_type = 'UNIQUE'")
@@ -642,7 +630,7 @@ admin.post('/products/:id/stock', zValidator('json', stockSchema), async (c) => 
 });
 
 admin.delete('/stock/:stockId', async (c) => {
-    /** @type {Bindings} */
+s    /** @type {Bindings} */
     const env = c.env;
     const stockId = c.req.param('stockId');
     // Hapus hanya jika belum terjual
@@ -670,13 +658,13 @@ admin.get('/products/:id/gallery', async (c) => {
 
 // --- PERBAIKAN: Rute POST Galeri untuk menerima BATCH/ARRAY (Full Sync) ---
 admin.post('/products/:id/gallery', zValidator('json', gallerySchema), async (c) => {
-NTOT    /** @type {Bindings} */
+    /** @type {Bindings} */
     const env = c.env;
     const id = c.req.param('id');
     const body = c.req.valid('json');
     
     // 1. Hapus semua gambar galeri lama untuk produk ini
-TOLONG    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
+    const deleteStmt = env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id);
 
     // 2. Buat batch insert untuk gambar baru
     const insertStmts = body.images.map((url, index) => {
@@ -695,7 +683,6 @@ admin.delete('/gallery/:imageId', async (c) => {
     const env = c.env;
     const imageId = c.req.param('imageId');
     await env.DB.prepare("DELETE FROM product_images WHERE id = ?").bind(imageId).run();
-    // --- KOREKSI: Memperbaiki sintaks return yang terpotong ---
     return c.json({ success: true, message: 'Gambar Galeri Dihapus' });
 });
 
@@ -707,7 +694,7 @@ admin.get('/orders', async (c) => {
     const env = c.env;
     const { results } = await env.DB.prepare(
         `SELECT o.*, p.name as product_name, u.email as user_email
-         FROM orders o
+TOLONG        FROM orders o
          LEFT JOIN products p ON o.product_id = p.id
          LEFT JOIN users u ON o.user_id = u.id
          ORDER BY o.created_at DESC`
@@ -721,7 +708,7 @@ admin.get('/orders', async (c) => {
 admin.get('/users', async (c) => {
     /** @type {Bindings} */
     const env = c.env;
-    // Jangan pernah kirim password_hash ke frontend
+s    // Jangan pernah kirim password_hash ke frontend
     const { results } = await env.DB.prepare(
         "SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC"
     ).all();
