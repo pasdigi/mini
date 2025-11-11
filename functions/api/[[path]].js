@@ -717,6 +717,16 @@ adminRouter.get('/users', async (c) => {
     ).all();
     return c.json(results || []);
 });
-    
+
+app.all('*', (c) => {
+  // Catat path yang masuk agar bisa dilihat di logs hosting
+  try {
+    console.log('[NO MATCH] Unmatched route:', c.req.method, c.req.url || c.req.path || (c.req.raw && c.req.raw.url));
+  } catch (e) {
+    console.log('[NO MATCH] Unmatched route (failed to read url)', e && e.message);
+  }
+  return c.json({ error: 'Not Found' }, 404);
+});
+
 // --- Ekspor Handler ---
 export const onRequest = handle(app);
