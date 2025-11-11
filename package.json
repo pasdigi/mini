@@ -5,8 +5,8 @@
   "scripts": {
     "build:manifest": "node ./scripts/generate-manifest.js",
     "build": "npm run build:manifest",
-    "dev": "npm run build:manifest && wrangler pages dev",
-    "deploy": "npm run build && wrangler pages deploy"
+    "dev": "npm run build:manifest && wrangler pages dev public",
+    "deploy": "npm run build && wrangler pages deploy ."
   },
   "dependencies": {
     "@hono/zod-validator": "^0.2.2",
