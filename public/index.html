@@ -15,13 +15,7 @@
       theme: {
         extend: {
           colors: {
-            primary: { // Dark Blue/Cyan (Profesional)
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              500: '#06b6d4',
-              600: '#0891b2',
-            800: '#075985',
-            },
+            primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#06b6d4', 600: '#0891b2', 800: '#075985' },
             accent: '#10b981',
           }
         },
@@ -75,7 +69,7 @@
                         </button>
                         <div x-show="openCat" @click.away="openCat = false" x-transition class="origin-top-left absolute mt-2 w-full rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 max-h-60 overflow-y-auto" x-cloak>
                             <div class="py-1" id="category-options-mobile">
-                                                            </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -86,16 +80,14 @@
                         </button>
                         <div x-show="openSortMobile" @click.away="openSortMobile = false" x-transition class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" x-cloak>
                             <div class="py-1" id="sort-options-mobile">
-                                                            </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
                         <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-lg shadow-sm mb-4 border border-gray-200">
                 <div id="result-count" class="text-sm font-medium text-gray-600">Memuat...</div>
-                <div class="relative mt-2 sm:mt-0">
-                                    </div>
             </div>
 
                         <main>
@@ -145,7 +137,6 @@
 
     // --- Konstan & Elemen ---
     const API_PRODUCTS = '/api/store/products';
-    const API_PRODUCT_BY_SLUG = '/api/store/products/slug/';
     
     const SORT_OPTIONS = [
       { value: 'popularity-desc', label: 'Populer' },
@@ -162,7 +153,6 @@
     const skeletonTmpl = document.getElementById('skeleton');
     const errorArea = document.getElementById('error-area');
     
-    // Sekarang hanya ada satu set input, menggunakan ID Mobile
     const searchInputMobile = document.getElementById('search-mobile'); 
 
     const resultCount = document.getElementById('result-count');
@@ -413,7 +403,9 @@
       currentSort = `${urlSortBy}-${urlSortOrder}`;
       
       // Update display name (Diperbarui di loadProducts setelah data dimuat)
-      
+      const selectedOption = SORT_OPTIONS.find(o => o.value === currentSort);
+      if (selectedSortNameMobileEl) selectedSortNameMobileEl.textContent = selectedOption ? selectedOption.label : 'Populer';
+
       // Load products
       loadProducts();
     }
