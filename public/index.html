@@ -6,16 +6,18 @@
   <title id="page-title">Digital Commerce | Toko Digital Instan</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js" defer></script>
   <script>
-    // Konfigurasi Tailwind CSS untuk tampilan premium dan rapi
+    // Konfigurasi Tailwind CSS untuk tampilan rapi
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            primary: { // Warna branding (Dark Teal)
+            primary: { // Dark Blue/Cyan (Profesional)
               50: '#f0f9ff',
               100: '#e0f2fe',
-              200: '#bae6fd',
               500: '#06b6d4', // Cyan/Teal
               600: '#0891b2',
               800: '#075985',
@@ -34,10 +36,12 @@
     body { font-family: 'Inter', sans-serif; }
     h1, h2, h3 { font-family: 'Poppins', sans-serif; }
     .icon-back:before { content: "←"; margin-right: 0.5rem; }
+    .text-xxs { font-size: 0.65rem; line-height: 1rem; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
   <div class="container mx-auto p-4 md:p-8 max-w-7xl flex-grow">
+    
         <header class="mb-8 p-4 bg-white shadow-lg rounded-xl flex justify-between items-center border-b border-primary-200">
       <a href="/" class="flex items-center gap-3 hover:opacity-90 transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -49,20 +53,20 @@
     </header>
 
         <div id="product-list-page" class="transition-opacity duration-500">
-        <h2 class="text-2xl font-header font-semibold text-gray-800 mb-6">Jelajahi Katalog Produk</h2>
+        <h2 class="text-2xl font-header font-semibold text-gray-800 mb-6">Katalog Produk Instan</h2>
 
         <section class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6 lg:gap-8">
-                        <aside x-data="{ searchInput: '' }" class="lg:sticky lg:top-8 h-fit">
-                <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100">
+                        <aside class="lg:sticky lg:top-8 h-fit">
+                <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100" x-data="{ sidebarSearch: '' }">
                     <h3 class="text-lg font-header font-semibold text-gray-800 mb-4 border-b pb-2">Filter & Kategori</h3>
                     
-                                        <input id="search" type="text" x-model="searchInput" placeholder="Cari di Katalog..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition mb-4">
+                                        <input id="search" type="text" :value="sidebarSearch" @input="sidebarSearch = $event.target.value; handleSearchDebounced();" placeholder="Cari di Katalog..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition mb-4">
 
                                         <div class="space-y-1 max-h-60 overflow-y-auto">
                         <a href="/" class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition"
-                           :class="[window.location.pathname === '/' ? 'bg-primary-50 text-primary-800 font-semibold' : 'text-gray-700 hover:bg-gray-100']"
+                           :class="[currentCategory === 'Semua' ? 'bg-primary-100 text-primary-800 font-semibold' : 'text-gray-700 hover:bg-gray-100']"
                            onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
-                            Semua Produk
+                            <i class="fas fa-th-large w-4 mr-2"></i> Semua Produk
                         </a>
                         
                         <div id="category-sidebar-list" class="space-y-1">
@@ -78,9 +82,9 @@
                     <div class="relative mt-2 sm:mt-0" x-data="{ open: false }">
                         <button @click="open = !open" type="button" class="inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary-500 transition">
                             Urutkan: &nbsp; <span id="selectedSortName" class="font-semibold text-primary-700">Populer</span>
-                            <svg class="ml-2 h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" :class="{ 'rotate-180': open }"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': open, 'fa-chevron-down': !open }"></i>
                         </button>
-                        <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                        <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
                             <div class="py-1" id="sort-options-list">
                                                             </div>
                         </div>
@@ -171,7 +175,7 @@
 
     // --- Logic Halaman List ---
 
-    function renderSkeletons(count = 10) { // Menambah skeleton
+    function renderSkeletons(count = 10) { 
       productListEl.innerHTML = '';
       for (let i = 0; i < count; i++) {
         const node = skeletonTmpl.content.cloneNode(true);
@@ -190,7 +194,7 @@
         const img = escapeHtml(p.image_url || 'https://placehold.co/400x400/f8fafc/64748b?text=DIGITAL');
         const name = escapeHtml(p.name || '—');
         const category = escapeHtml(p.category_name || 'Umum');
-        // PENTING: Ukuran harga dikecilkan menjadi text-xl atau text-lg
+        // Ukuran harga: text-xl
         const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
         const slugOrId = encodeURIComponent(p.slug || p.id);
         const href = `/product/${slugOrId}`;
@@ -210,8 +214,7 @@
               
               <div class="mt-3">
                 <button class="w-full inline-flex items-center justify-center gap-1 bg-primary-600 text-white py-2 px-3 rounded-lg shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300 font-medium text-xs transition">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.35 13 5.378 13h12.5a.5.5 0 000-1H5.378c-.282 0-.58.125-.712.315-.226.297-.367.73-.24 1.144L6 17a1 1 0 001 1h8a1 1 0 100-2H7.071l.78-3.124h8.43c.725 0 1.36-.36 1.733-.948l1.735-2.733a1.001 1.001 0 00.007-.803.996.996 0 00-.734-.693l-4.137-.996L12 8l-.75-3H4.22L3.916 2.042A1 1 0 003 1z" /></svg>
-                  Beli Instan
+                  <i class="fas fa-shopping-cart h-3 w-3"></i> Beli Instan
                 </button>
               </div>
             </div>
@@ -226,7 +229,6 @@
       categorySidebarList.innerHTML = '';
       allCategories.filter(c => c !== 'Semua').forEach(cat => {
         const link = document.createElement('a');
-        // Menggunakan format query yang sama agar router dapat menangkapnya
         link.href = `/?category=${encodeURIComponent(cat)}`; 
         link.textContent = cat;
         link.className = 'flex items-center px-3 py-2 text-sm rounded-lg font-medium transition';
@@ -236,9 +238,11 @@
           router();
         };
         
-        // Logika highlight category
+        link.innerHTML = `<i class="fas fa-tag w-4 mr-2 text-gray-400"></i> ${cat}`;
+
         if (cat === currentCategory) {
           link.classList.add('bg-primary-100', 'text-primary-800', 'font-semibold');
+          link.querySelector('i').classList.add('!text-primary-800');
         } else {
           link.classList.add('text-gray-700', 'hover:bg-gray-100');
         }
@@ -251,7 +255,6 @@
       sortOptionsList.innerHTML = '';
       SORT_OPTIONS.forEach(opt => {
         const [sort_by, sort_order] = opt.value.split('-');
-        // Mempertahankan filter kategori saat mengubah sort
         const href = `/?category=${encodeURIComponent(currentCategory)}&sort_by=${sort_by}&sort_order=${sort_order}`;
         
         const link = document.createElement('a');
@@ -309,23 +312,21 @@
             break;
           case 'popularity':
           default:
-            // Default: Sort by name asc jika popularity tidak jelas
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
             return valA.localeCompare(valB); 
         }
         
-        if (sort_by === 'name' || sort_by === 'popularity') return 0; // Sudah ditangani di atas
+        if (sort_by === 'name' || sort_by === 'popularity') return 0; 
         return sort_order === 'asc' ? (valA - valB) : (valB - valA);
       });
 
       renderProducts(list);
-      renderCategorySidebar(categories); // Render ulang untuk highlight yang benar
-      renderSortOptions(); // Render ulang untuk highlight yang benar
+      renderCategorySidebar(categories);
+      renderSortOptions();
     }
 
     async function loadProducts() {
-      // Tampilkan halaman list, sembunyikan detail
       productListPage.classList.remove('hidden', 'opacity-0');
       productDetailPage.classList.add('hidden', 'opacity-0');
       pageTitleEl.textContent = 'Katalog Produk | Digital Commerce';
@@ -338,7 +339,6 @@
         const parsed = await parseJsonResponse(res);
         
         if (!res.ok) {
-          console.error('Load products error:', parsed.raw || parsed.json || res.status);
           productListEl.innerHTML = '<div class="col-span-full p-4 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 text-sm font-medium">Gagal memuat produk dari API.</div>';
           errorArea.classList.remove('hidden'); resultCount.textContent = '0 Produk Ditemukan'; return;
         }
@@ -350,11 +350,9 @@
         products.forEach(p => set.add(p.category_name || 'Umum'));
         categories = ['Semua', ...Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b))];
         
-        // Setelah data dimuat, jalankan filter/sort berdasarkan state URL
         filterAndSortProducts(); 
         
       } catch (err) {
-        console.error('Unexpected error loading products', err);
         productListEl.innerHTML = '<div class="col-span-full p-4 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 text-sm font-medium">Terjadi kesalahan sistem saat memuat produk.</div>';
         errorArea.classList.remove('hidden'); resultCount.textContent = '0 Produk Ditemukan';
       }
@@ -368,7 +366,7 @@
       pageTitleEl.textContent = `${p.name} | Digital Commerce`;
 
       const img = escapeHtml(p.image_url || 'https://placehold.co/800x800/f8fafc/64748b?text=PRODUK');
-      // PENTING: Ukuran harga dikecilkan menjadi text-3xl
+      // Ukuran harga: text-3xl
       const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
       
       productDetailPage.innerHTML = `
@@ -395,8 +393,7 @@
               <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.description || 'Deskripsi belum tersedia.')}</p>
 
               <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mt-8 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3 px-6 rounded-lg text-lg font-bold shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.35 13 5.378 13h12.5a.5.5 0 000-1H5.378c-.282 0-.58.125-.712.315-.226.297-.367.73-.24 1.144L6 17a1 1 0 001 1h8a1 1 0 100-2H7.071l.78-3.124h8.43c.725 0 1.36-.36 1.733-.948l1.735-2.733a1.001 1.001 0 00.007-.803.996.996 0 00-.734-.693l-4.137-.996L12 8l-.75-3H4.22L3.916 2.042A1 1 0 003 1z" /></svg>
-                Beli Instan & Download
+                <i class="fas fa-shopping-cart h-5 w-5"></i> Beli Instan & Download
               </button>
             </div>
           </div>
@@ -430,7 +427,6 @@
         renderProductDetail(parsed.json);
 
       } catch (err) {
-        console.error('Unexpected error loading product detail', err);
         productDetailPage.innerHTML = '<div class="text-center p-4 bg-red-50 rounded-xl shadow border border-red-200 text-red-700 text-sm font-medium">Terjadi kesalahan sistem saat memuat detail produk.</div>';
       }
     }
@@ -460,16 +456,20 @@
         loadProducts();
       }
     }
+    
+    // Debounced search handler for efficiency
+    let searchTimeout;
+    window.handleSearchDebounced = () => {
+      clearTimeout(searchTimeout); 
+      searchTimeout = setTimeout(() => {
+        currentSearchQuery = searchInput.value;
+        filterAndSortProducts();
+      }, 300); 
+    };
+    
 
-    // Event Listener Pencarian
-    searchInput.addEventListener('input', (() => { 
-      let t; 
-      return (e) => { 
-        currentSearchQuery = e.target.value;
-        clearTimeout(t); 
-        t = setTimeout(()=>filterAndSortProducts(), 300); 
-      }; 
-    })());
+    // Event Listener Pencarian di Sidebar
+    searchInput.addEventListener('input', window.handleSearchDebounced);
 
     // Memastikan link internal yang mengarah ke home menggunakan router
     document.querySelector('header a[href="/"]').addEventListener('click', (e) => {
