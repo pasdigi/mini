@@ -17,7 +17,10 @@
           colors: {
             primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#06b6d4', 600: '#0891b2', 800: '#075985' },
             accent: '#10b981',
-          }
+          },
+          spacing: {
+            '13': '3.25rem', // 52px (untuk margin negatif)
+          }
         },
         fontFamily: {
           sans: ['Inter', 'sans-serif'],
@@ -32,6 +35,9 @@
     .icon-back:before { content: "←"; margin-right: 0.5rem; }
     .text-xxs { font-size: 0.65rem; line-height: 1rem; } 
     [x-cloak] { display: none !important; }
+    @media (min-width: 768px) {
+        .md\:mt-neg-13 { margin-top: -3.25rem; } /* -52px */
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
@@ -50,60 +56,60 @@
         
         <section>
             
-                        <h2 class="text-2xl font-header font-semibold text-gray-800 mb-6">Katalog Produk Instan</h2>
+            <h2 class="text-2xl font-header font-semibold text-gray-800 mb-6">Katalog Produk Instan</h2>
             
-                                                <div class="flex flex-col md:flex-row md:space-x-8">
+            <div class="flex flex-col md:flex-row md:space-x-8">
 
-                                                        <aside id="category-sidebar-desktop" class="md:w-64 flex-shrink-0 mb-6 hidden md:block">
-                                <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 sticky top-4">
-                                    <h3 class="text-lg font-header font-semibold text-gray-800 mb-3 border-b pb-2">Kategori</h3>
-                                    <nav class="space-y-1 text-sm" id="category-options-desktop">
-                                                                            </nav>
-                                </div>
-                            </aside>
+                                <aside id="category-sidebar-desktop" class="md:w-64 flex-shrink-0 mb-6 hidden md:block">
+                                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 md:mt-[-52px] sticky top-4">
+                        <h3 class="text-lg font-header font-semibold text-gray-800 mb-3 border-b pb-2">Kategori</h3>
+                        <nav class="space-y-1 text-sm" id="category-options-desktop">
+                                                    </nav>
+                    </div>
+                </aside>
 
-                                                        <div class="md:flex-1">
+                                <div class="md:flex-1">
 
-                                <div class="mb-4 bg-white p-4 rounded-xl shadow-md border border-gray-100">
-                                    <div class="relative mb-3">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <i class="fas fa-search text-gray-400"></i>
-                                        </div>
-                                        <input id="search-mobile" type="text" placeholder="Cari di Katalog..." class="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition">
-                                    </div>
+                    <div class="mb-4 bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                        <div class="relative mb-3">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400"></i>
+                            </div>
+                            <input id="search-mobile" type="text" placeholder="Cari di Katalog..." class="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition">
+                        </div>
 
-                                    <div class="flex gap-3">
+                        <div class="flex gap-3">
                                         
-                                                                                <div class="relative w-1/2 md:hidden" x-data="{ openCat: false }">
-                                            <button @click="openCat = !openCat" type="button" class="w-full inline-flex justify-between items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary-500 transition">
-                                                <span id="selectedCategoryNameMobile">Semua Kategori</span>
-                                                <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': openCat, 'fa-chevron-down': !openCat }"></i>
-                                            </button>
-                                            <div x-show="openCat" @click.away="openCat = false" x-transition class="origin-top-left absolute mt-2 w-full rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 max-h-60 overflow-y-auto" x-cloak>
-                                                <div class="py-1" id="category-options-mobile">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                                                                <div class="relative w-1/2 md:w-auto" x-data="{ openSortMobile: false }">
-                                            <button @click="openSortMobile = !openSortMobile" type="button" class="w-full inline-flex justify-between items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary-500 transition">
-                                                Urutkan: &nbsp; <span id="selectedSortNameMobile">Populer</span>
-                                                <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': openSortMobile, 'fa-chevron-down': !openSortMobile }"></i>
-                                            </button>
-                                            <div x-show="openSortMobile" @click.away="openSortMobile = false" x-transition class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" x-cloak>
-                                                <div class="py-1" id="sort-options-mobile">
-                                                </div>
-                                            </div>
-                                        </div>
+                                                        <div class="relative w-1/2 md:hidden" x-data="{ openCat: false }">
+                                <button @click="openCat = !openCat" type="button" class="w-full inline-flex justify-between items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary-500 transition">
+                                    <span id="selectedCategoryNameMobile">Semua Kategori</span>
+                                    <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': openCat, 'fa-chevron-down': !openCat }"></i>
+                                </button>
+                                <div x-show="openCat" @click.away="openCat = false" x-transition class="origin-top-left absolute mt-2 w-full rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 max-h-60 overflow-y-auto" x-cloak>
+                                    <div class="py-1" id="category-options-mobile">
                                     </div>
                                 </div>
+                            </div>
+                                        
+                                                        <div class="relative w-1/2 md:w-auto" x-data="{ openSortMobile: false }">
+                                <button @click="openSortMobile = !openSortMobile" type="button" class="w-full inline-flex justify-between items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary-500 transition">
+                                    Urutkan: &nbsp; <span id="selectedSortNameMobile">Populer</span>
+                                    <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': openSortMobile, 'fa-chevron-down': !openSortMobile }"></i>
+                                </button>
+                                <div x-show="openSortMobile" @click.away="openSortMobile = false" x-transition class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" x-cloak>
+                                    <div class="py-1" id="sort-options-mobile">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                                 <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-lg shadow-sm mb-4 border border-gray-200">
                                     <div id="result-count" class="text-sm font-medium text-gray-600">Memuat...</div>
                                 </div>
 
                                 <main>
-                                    <div id="product-list" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+                                                                        <div id="product-list" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
                                         <template id="skeleton">
                                             <div class="animate-pulse p-3 bg-white rounded-xl shadow-md border border-gray-100">
                                                 <div class="w-full aspect-square bg-gray-200 rounded-lg mb-3"></div>
@@ -126,8 +132,7 @@
                                 </main>
                             </div>
 
-                        </div>
-                                    
+            </div>
         </section>
     </div>
   </div>
@@ -177,7 +182,6 @@
     
     const categoryOptionsMobile = document.getElementById('category-options-mobile');
     const selectedCategoryNameMobileEl = document.getElementById('selectedCategoryNameMobile');
-    // Elemen baru untuk sidebar desktop
     const categoryOptionsDesktop = document.getElementById('category-options-desktop');
 
 
@@ -375,23 +379,13 @@
       });
 
       renderProducts(list);
-      renderCategoryDropdown(categories); // Memanggil untuk merender ke dua lokasi
+      renderCategoryDropdown(categories); 
       renderSortOptions();
     }
-    
-    // ... (Fungsi router, loadProducts, dan lainnya tetap sama)
 
     async function loadProducts() {
+      // Logika redirect Dihapus dari sini.
       
-      // Cek apakah kita seharusnya berada di halaman detail
-      if (window.location.pathname.startsWith('/product/')) {
-        // Redirect ke shell product.html
-        const slug = window.location.pathname.substring(8);
-        window.location.replace(`/product/${slug}${window.location.search}`);
-        return;
-      }
-      
-      // Tampilkan halaman list
       productListPage.classList.remove('hidden', 'opacity-0');
       
       // Simulate Data Fetch (Placeholder)
@@ -424,18 +418,19 @@
       // ====================================
     }
 
-    // --- Client-Side Router ---
+    // --- Client-Side Router (Diperbaiki) ---
 
     function router() {
       const path = window.location.pathname;
       
+      // LOGIC PENTING: Jika path adalah halaman detail produk, hentikan eksekusi logic halaman list.
       if (path.startsWith('/product/')) {
-        const slug = path.substring(8);
-        window.location.replace(`/product/${slug}${window.location.search}`);
-        return;
+        // Di lingkungan frontend sejati, Anda akan memuat halaman detail produk di sini.
+        // Dalam konteks file tunggal ini, kita biarkan saja navigasi browser berjalan.
+        return; 
       }
       
-      // Logika penentuan filter/sort (Sama)
+      // Logic penentuan filter/sort (Sama)
       const urlParams = new URLSearchParams(window.location.search);
       const urlCat = urlParams.get('category');
       currentCategory = urlCat ? decodeURIComponent(urlCat) : 'Semua';
@@ -443,11 +438,10 @@
       const urlSortOrder = urlParams.get('sort_order') || 'desc';
       currentSort = `${urlSortBy}-${urlSortOrder}`;
       
-      // Update display name (Diperbarui di loadProducts setelah data dimuat)
       const selectedOption = SORT_OPTIONS.find(o => o.value === currentSort);
       if (selectedSortNameMobileEl) selectedSortNameMobileEl.textContent = selectedOption ? selectedOption.label : 'Populer';
 
-      // Load products
+      // Load products HANYA jika kita berada di halaman list.
       loadProducts();
     }
     
