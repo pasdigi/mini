@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js" defer></script>
   <script>
-    // Konfigurasi Tailwind CSS untuk tampilan rapi
+    // Konfigurasi Tailwind CSS untuk tampilan rapi dan proporsional
     tailwind.config = {
       theme: {
         extend: {
@@ -20,7 +20,7 @@
               100: '#e0f2fe',
               500: '#06b6d4', // Cyan/Teal
               600: '#0891b2',
-              800: '#075985',
+            800: '#075985',
             },
             accent: '#10b981', // Hijau Emerald untuk Aksi/Harga
           }
@@ -36,12 +36,14 @@
     body { font-family: 'Inter', sans-serif; }
     h1, h2, h3 { font-family: 'Poppins', sans-serif; }
     .icon-back:before { content: "←"; margin-right: 0.5rem; }
-    .text-xxs { font-size: 0.65rem; line-height: 1rem; }
+    /* Ukuran ekstra kecil untuk badge */
+    .text-xxs { font-size: 0.65rem; line-height: 1rem; } 
+    /* Sembunyikan Alpine.js components sebelum inisialisasi untuk mencegah flicker */
+    [x-cloak] { display: none !important; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
   <div class="container mx-auto p-4 md:p-8 max-w-7xl flex-grow">
-    
         <header class="mb-8 p-4 bg-white shadow-lg rounded-xl flex justify-between items-center border-b border-primary-200">
       <a href="/" class="flex items-center gap-3 hover:opacity-90 transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -57,14 +59,13 @@
 
         <section class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6 lg:gap-8">
                         <aside class="lg:sticky lg:top-8 h-fit">
-                <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100" x-data="{ sidebarSearch: '' }">
+                <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100">
                     <h3 class="text-lg font-header font-semibold text-gray-800 mb-4 border-b pb-2">Filter & Kategori</h3>
                     
-                                        <input id="search" type="text" :value="sidebarSearch" @input="sidebarSearch = $event.target.value; handleSearchDebounced();" placeholder="Cari di Katalog..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition mb-4">
+                                        <input id="search" type="text" placeholder="Cari di Katalog..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-0 transition mb-4">
 
                                         <div class="space-y-1 max-h-60 overflow-y-auto">
-                        <a href="/" class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition"
-                           :class="[currentCategory === 'Semua' ? 'bg-primary-100 text-primary-800 font-semibold' : 'text-gray-700 hover:bg-gray-100']"
+                        <a href="/" id="all-products-link" class="flex items-center px-3 py-2 text-sm rounded-lg font-medium transition"
                            onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
                             <i class="fas fa-th-large w-4 mr-2"></i> Semua Produk
                         </a>
@@ -84,7 +85,7 @@
                             Urutkan: &nbsp; <span id="selectedSortName" class="font-semibold text-primary-700">Populer</span>
                             <i class="ml-2 fas fa-chevron-down text-gray-400 text-xs" :class="{ 'fa-chevron-up': open, 'fa-chevron-down': !open }"></i>
                         </button>
-                        <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                        <div x-show="open" @click.away="open = false" x-transition class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" x-cloak>
                             <div class="py-1" id="sort-options-list">
                                                             </div>
                         </div>
@@ -166,6 +167,8 @@
     const sortOptionsList = document.getElementById('sort-options-list');
     const selectedSortNameEl = document.getElementById('selectedSortName');
     const categorySidebarList = document.getElementById('category-sidebar-list');
+    const allProductsLink = document.getElementById('all-products-link');
+
 
     // State
     let products = [], categories = ['Semua'];
@@ -194,7 +197,8 @@
         const img = escapeHtml(p.image_url || 'https://placehold.co/400x400/f8fafc/64748b?text=DIGITAL');
         const name = escapeHtml(p.name || '—');
         const category = escapeHtml(p.category_name || 'Umum');
-        // Ukuran harga: text-xl
+        
+        // PENTING: Ukuran harga dikecilkan menjadi text-xl
         const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
         const slugOrId = encodeURIComponent(p.slug || p.id);
         const href = `/product/${slugOrId}`;
@@ -214,7 +218,7 @@
               
               <div class="mt-3">
                 <button class="w-full inline-flex items-center justify-center gap-1 bg-primary-600 text-white py-2 px-3 rounded-lg shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300 font-medium text-xs transition">
-                  <i class="fas fa-shopping-cart h-3 w-3"></i> Beli Instan
+                  <i class="fas fa-shopping-cart h-4 w-4"></i> Beli Instan
                 </button>
               </div>
             </div>
@@ -227,6 +231,19 @@
 
     function renderCategorySidebar(allCategories) {
       categorySidebarList.innerHTML = '';
+      
+      // Highlight "Semua Produk" Link
+      if (currentCategory === 'Semua') {
+        allProductsLink.classList.remove('text-gray-700', 'hover:bg-gray-100');
+        allProductsLink.classList.add('bg-primary-100', 'text-primary-800', 'font-semibold');
+        allProductsLink.querySelector('i').classList.add('!text-primary-800');
+      } else {
+        allProductsLink.classList.add('text-gray-700', 'hover:bg-gray-100');
+        allProductsLink.classList.remove('bg-primary-100', 'text-primary-800', 'font-semibold');
+        allProductsLink.querySelector('i').classList.remove('!text-primary-800');
+      }
+
+
       allCategories.filter(c => c !== 'Semua').forEach(cat => {
         const link = document.createElement('a');
         link.href = `/?category=${encodeURIComponent(cat)}`; 
@@ -241,10 +258,13 @@
         link.innerHTML = `<i class="fas fa-tag w-4 mr-2 text-gray-400"></i> ${cat}`;
 
         if (cat === currentCategory) {
+          link.classList.remove('text-gray-700', 'hover:bg-gray-100');
           link.classList.add('bg-primary-100', 'text-primary-800', 'font-semibold');
           link.querySelector('i').classList.add('!text-primary-800');
         } else {
           link.classList.add('text-gray-700', 'hover:bg-gray-100');
+          link.classList.remove('bg-primary-100', 'text-primary-800', 'font-semibold');
+          link.querySelector('i').classList.remove('!text-primary-800');
         }
 
         categorySidebarList.appendChild(link);
@@ -366,7 +386,7 @@
       pageTitleEl.textContent = `${p.name} | Digital Commerce`;
 
       const img = escapeHtml(p.image_url || 'https://placehold.co/800x800/f8fafc/64748b?text=PRODUK');
-      // Ukuran harga: text-3xl
+      // PENTING: Ukuran harga (text-3xl)
       const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
       
       productDetailPage.innerHTML = `
@@ -431,7 +451,7 @@
       }
     }
 
-    // --- Client-Side Router & Event Handlers (Sama) ---
+    // --- Client-Side Router & Event Handlers ---
 
     function router() {
       const path = window.location.pathname;
