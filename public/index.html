@@ -9,31 +9,20 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
     <script>
-        // Konfigurasi Tailwind untuk warna primer yang lebih mudah dikontrol
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
+                            50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8',
+                            500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e',
                         },
                     }
                 }
             }
         }
     </script>
-
     <style>
-        /* CSS Tambahan untuk animasi sederhana */
         .card-skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
             background-size: 200% 100%;
@@ -84,12 +73,8 @@
                     <div x-show="openCat" @click.outside="openCat = false" 
                          class="absolute z-40 mt-1 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
                          x-transition:enter="transition ease-out duration-100"
-                         x-transition:enter-start="transform opacity-0 scale-95"
-                         x-transition:enter-end="transform opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-75"
-                         x-transition:leave-start="transform opacity-100 scale-100"
-                         x-transition:leave-end="transform opacity-0 scale-95">
-                        <div id="category-options-mobile" class="py-1 max-h-60 overflow-y-auto" role="menu" aria-orientation="vertical" aria-labelledby="category-menu">
+                         x-transition:leave="transition ease-in duration-75">
+                        <div id="category-options-mobile" class="py-1 max-h-60 overflow-y-auto">
                             </div>
                     </div>
                 </div>
@@ -201,7 +186,7 @@
 
         // --- State Aplikasi ---
         let products = [];
-        let categories = ['Semua']; // 'Semua' harus selalu ada
+        let categories = ['Semua']; 
         let currentSearchQuery = '';
         let currentSort = SORT_OPTIONS[0].value;
         let currentCategory = 'Semua';
@@ -222,7 +207,7 @@
                 .replace(/-+$/, '');
         };
 
-        // --- Rendering UI Komponen ---
+        // --- Rendering UI Komponen (Kode tidak berubah, hanya fungsi yang diperlukan) ---
 
         function renderSkeletons(count = 6) {
             productList.innerHTML = Array(count).fill(0).map(() => `
@@ -294,10 +279,8 @@
                 history.pushState(null, '', link.href);
                 router(); 
                 
-                // Update Mobile Display Name
                 selectedCategoryNameMobileEl.textContent = label;
                 
-                // **PERBAIKAN LOGIKA MOBILE**: Cari komponen Alpine.js terdekat dan atur 'openCat' menjadi false untuk menutup dropdown
                 let alpineComponent = e.currentTarget.closest('[x-data]');
                 if (alpineComponent && alpineComponent.__x) {
                     alpineComponent.__x.$data.openCat = false; 
@@ -310,21 +293,19 @@
             categorySidebarList.innerHTML = '';
             categoryOptionsMobile.innerHTML = ''; 
             
-            // Atur Link "Semua Produk" (Desktop) dan Display Mobile
             const isAll = currentCategory === 'Semua';
             if (isAll) {
                 allProductsLink.classList.remove('text-gray-700', 'hover:bg-gray-100');
                 allProductsLink.classList.add('bg-primary-100', 'text-primary-800', 'font-semibold');
                 allProductsLink.querySelector('i').classList.add('!text-primary-800');
-                selectedCategoryNameMobileEl.textContent = 'Semua Kategori'; // Reset mobile display
+                selectedCategoryNameMobileEl.textContent = 'Semua Kategori';
             } else {
                 allProductsLink.classList.add('text-gray-700', 'hover:bg-gray-100');
                 allProductsLink.classList.remove('bg-primary-100', 'text-primary-800', 'font-semibold');
                 allProductsLink.querySelector('i').classList.remove('!text-primary-800');
-                selectedCategoryNameMobileEl.textContent = currentCategory; // Set mobile display to current category
+                selectedCategoryNameMobileEl.textContent = currentCategory;
             }
 
-            // Render Mobile "Semua Kategori" Option
             const allMobileOption = createMobileCategoryLink('Semua Kategori', '/');
             if (isAll) allMobileOption.classList.add('bg-primary-50', 'text-primary-800', 'font-semibold');
             categoryOptionsMobile.appendChild(allMobileOption);
@@ -344,12 +325,10 @@
                 const mobileLink = createMobileCategoryLink(cat, href);
 
                 if (cat === currentCategory) {
-                    // Highlight desktop
                     desktopLink.classList.remove('text-gray-700', 'hover:bg-gray-100');
                     desktopLink.classList.add('bg-primary-100', 'text-primary-800', 'font-semibold');
                     desktopLink.querySelector('i').classList.add('!text-primary-800');
 
-                    // Highlight mobile
                     mobileLink.classList.add('bg-primary-50', 'text-primary-800', 'font-semibold');
 
                 } else {
@@ -406,7 +385,6 @@
                 const data = await response.json();
                 products = data;
                 
-                // Hanya update kategori jika diminta (biasanya hanya di load awal)
                 if (refreshCategories) {
                     const uniqueCategories = ['Semua', ...new Set(data.map(p => p.category_name).filter(Boolean).sort())];
                     categories = uniqueCategories;
@@ -531,11 +509,9 @@
         // --- Routing dan Initial Load ---
 
         function router() {
-            const path = window.location.pathname;
             const params = new URLSearchParams(window.location.search);
             const productSlug = params.get('product');
             
-            // 1. Cek Halaman Detail Produk
             if (productSlug) {
                 productListPage.classList.add('hidden');
                 productDetailPage.classList.remove('hidden');
@@ -543,76 +519,61 @@
                 return;
             }
 
-            // 2. Halaman Daftar Produk
             productListPage.classList.remove('hidden');
             productDetailPage.classList.add('hidden');
 
-            // Ambil state dari URL/params
             const categoryParam = params.get('category');
             const searchParam = params.get('q');
             const sortParam = params.get('sort');
 
-            // Update State Global
             currentCategory = categoryParam || 'Semua';
             currentSearchQuery = searchParam || '';
             currentSort = SORT_OPTIONS.find(opt => opt.value === sortParam)?.value || SORT_OPTIONS[0].value;
 
-            // Update Input UI (agar sinkron)
             searchInputDesktop.value = currentSearchQuery;
             searchInputMobile.value = currentSearchQuery;
             
             renderSortOptions(sortSelectDesktop, currentSort);
             renderSortOptions(sortSelectMobile, currentSort);
             
-            // Re-render sidebar dan filter produk
             renderCategorySidebar(categories); 
             filterAndSortProducts(); 
         }
 
         // --- Event Listeners ---
         
-        // Listener Pencarian (Desktop dan Mobile)
         [searchInputDesktop, searchInputMobile].forEach(inputEl => {
             inputEl.addEventListener('input', () => {
                 const query = inputEl.value.trim().toLowerCase();
-                // Update URL dan router
                 const url = new URL(window.location.href);
                 if (query) {
                     url.searchParams.set('q', query);
                 } else {
                     url.searchParams.delete('q');
                 }
-                // Hapus product detail jika sedang ada
                 url.searchParams.delete('product'); 
                 history.pushState(null, '', url.toString());
                 router(); 
             });
         });
 
-        // Listener Sortir (Desktop dan Mobile)
         [sortSelectDesktop, sortSelectMobile].forEach(selectEl => {
             selectEl.addEventListener('change', (e) => {
                 const sortValue = e.target.value;
-                // Update URL dan router
                 const url = new URL(window.location.href);
                 url.searchParams.set('sort', sortValue);
-                // Hapus product detail jika sedang ada
                 url.searchParams.delete('product');
                 history.pushState(null, '', url.toString());
                 router();
             });
         });
 
-        // Listener Popstate (Tombol Back/Forward Browser)
         window.addEventListener('popstate', router);
 
 
         // --- Inisialisasi Aplikasi ---
 
-        // 1. Muat data produk dan kategori sekali di awal
-        // (refreshCategories = true agar kategori terisi)
         loadProducts(true).then(() => {
-            // 2. Jalankan router setelah data utama dimuat
             router();
         });
 
