@@ -643,72 +643,15 @@ api.all('*', (c) => {
 });
 
 /* -----------------------------------------------
-    RUTE HALAMAN DINAMIS (PENTING: DITEMPATKAN DI SINI)
-    Ini adalah handler untuk URL seperti /product/profit-book.
+    RUTE HALAMAN DINAMIS UNTUK CLIENT-SIDE ROUTING
+    Rute ini menyajikan shell HTML statis (index.html) yang akan 
+    menangani rute dinamis seperti /product/xyz di sisi klien.
+    PENTING: Harus ditempatkan SEBELUM catch-all statis.
     ----------------------------------------------- */
-app.get('/product/:slug', async (c) => {
-    const env = c.env;
-    const slug = c.req.param('slug');
-    
-    // 1. Ambil data produk menggunakan handler API yang sudah ada
-    // Kita perlu "memalsukan" request params untuk storeProductBySlugHandler
-    c.req.param('slug', slug);
-    const productResponse = await storeProductBySlugHandler(c); 
-
-    if (productResponse.status !== 200) {
-        // Produk tidak ditemukan (404), biarkan serveStatic yang menangani file 404/index.html
-        // Atau Anda bisa mengembalikan c.html('<h1>404 Not Found</h1>', 404);
-        return c.notFound(); 
-    }
-
-    const productData = await productResponse.json();
-
-    // 2. Render HTML menggunakan data yang diambil
-    // **CATATAN:** Anda harus mengimplementasikan logika penggantian template di sini.
-    // Berikut adalah contoh menggunakan template literal dasar.
-
-    const htmlTemplate = `
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Detail Produk: ${productData.name}</title>
-                <meta name="description" content="${productData.description.substring(0, 150)}...">
-                <meta property="og:title" content="${productData.name}">
-                <meta property="og:image" content="${productData.image_url || 'https://via.placeholder.com/600'}">
-                
-                <link rel="stylesheet" href="/style.css"> 
-            </head>
-            <body>
-                <header>
-                    <a href="/">Kembali ke Beranda</a>
-                </header>
-                <main>
-                    <article>
-                        <img src="${productData.image_url || 'https://via.placeholder.com/600'}" alt="${productData.name}" style="max-width: 100%;">
-                        <h1>${productData.name}</h1>
-                        <p><strong>Harga:</strong> Rp${productData.price.toLocaleString('id-ID')}</p>
-                        
-                        <h2>Deskripsi</h2>
-                        <p>${productData.description.replace(/\n/g, '<br>')}</p>
-                        
-                        <button onclick="alert('Checkout untuk ${productData.name} akan segera dilakukan!')">Beli Sekarang</button>
-                    </article>
-                    
-                    <script>
-                        const PRODUCT_DATA = ${JSON.stringify(productData)};
-                        console.log('Data produk lengkap dimuat:', PRODUCT_DATA);
-                    </script>
-                </main>
-                <footer>
-                    <p>&copy; 2024 Toko Saya</p>
-                </footer>
-            </body>
-        </html>
-    `;
-    return c.html(htmlTemplate);
-});
+app.get('/product/*', serveStatic({ 
+    root: './public',
+    path: 'index.html' // Menggunakan index.html sebagai shell fallback untuk CSR
+}));
 
 
 /* -----------------------------------------------
