@@ -3,104 +3,140 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title id="page-title">Toko Digital | Mini Commerce</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <title id="page-title">Toko Digital Premium | Mini Commerce</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    // Konfigurasi Tailwind CSS untuk menggunakan font Inter dan palet warna kustom
+    // Konfigurasi Tailwind CSS untuk tampilan premium
     tailwind.config = {
       theme: {
         extend: {
           colors: {
             primary: {
-              50: '#f5f7ff',
-              100: '#eef1ff',
-              200: '#d9e0ff',
-              300: '#b0bfff',
-              400: '#869aff',
-              500: '#5c78ff', // Warna Biru Utama
-              600: '#435eff',
-              700: '#3248c0',
-              800: '#23338c',
-              900: '#151e5e',
+              50: '#e0f7fa',
+              100: '#b2ebf2',
+              200: '#80deea',
+              300: '#4dd0e1',
+              400: '#26c6da',
+              500: '#00bcd4', // Teal utama
+              600: '#00acc1',
+              700: '#0097a7',
+              800: '#00838f',
+              900: '#006064',
             },
-            accent: '#10b981', // Hijau untuk Aksi
+            accent: '#3b82f6', // Biru terang untuk Harga/Aksi
+            dark: '#1e293b', // Slate 800/900 untuk background utama
           }
         },
         fontFamily: {
           sans: ['Inter', 'sans-serif'],
+          header: ['Poppins', 'sans-serif'],
         }
       }
     }
   </script>
     <style>
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3 { font-family: 'Poppins', sans-serif; }
     .icon-cart:before { content: "🛒"; margin-right: 0.5rem; }
     .icon-back:before { content: "←"; margin-right: 0.5rem; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
   <div class="container mx-auto p-4 md:p-8 max-w-7xl flex-grow">
-        <header class="mb-8 p-4 bg-white shadow-lg rounded-xl flex justify-between items-center">
+        <header class="mb-8 p-4 bg-white shadow-xl rounded-2xl flex justify-between items-center border-t-4 border-primary-600">
       <a href="/" class="block flex items-center gap-3 hover:opacity-90 transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1v-3.25m-7.5 0h15a3 3 0 003-3V8.75a3 3 0 00-3-3h-15a3 3 0 00-3 3V14a3 3 0 003 3.25z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V17a2 2 0 01-2 2z" />
         </svg>
         <div>
-          <h1 class="text-2xl font-extrabold text-gray-900">Mini Commerce</h1>
-          <p class="text-sm text-gray-500 mt-0.5 hidden sm:block">Produk digital siap diunduh.</p>
+          <h1 class="text-2xl font-header font-extrabold text-gray-900">Digital Commerce</h1>
+          <p class="text-sm text-gray-500 mt-0.5 hidden sm:block">Tempat Terbaik untuk Produk Instan</p>
         </div>
       </a>
-      <a href="/admin/login" class="text-sm text-gray-600 hover:text-primary-600 font-semibold transition">Login Admin</a>
+      <a href="/admin/login" class="text-sm text-gray-600 hover:text-primary-600 font-semibold transition py-2 px-4 border rounded-lg hover:bg-gray-50">Login Admin</a>
     </header>
 
-        <div id="product-list-page" class="transition-opacity duration-300">
-      <section id="controls" class="mb-8 bg-white p-4 md:p-6 rounded-xl shadow-lg">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Jelajahi Produk Kami</h2>
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div class="flex items-center gap-3 flex-wrap">
-            <input id="search" type="search" placeholder="Cari produk digital..." class="px-4 py-2 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full lg:w-64 transition" />
-            <div id="category-pills" class="flex gap-2 overflow-x-auto py-1 whitespace-nowrap"></div>
-          </div>
+        <div id="product-list-page" class="transition-opacity duration-500">
+        <h2 class="text-3xl font-header font-bold text-gray-900 mb-6 border-b pb-2">Katalog Produk Digital</h2>
 
-          <div class="text-sm text-gray-500 font-medium self-start lg:self-auto">
-            <span id="result-count" class="bg-primary-50 text-primary-700 px-3 py-1 rounded-full">Memuat...</span>
-          </div>
-        </div>
-      </section>
+        <section class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-8">
+                        <aside x-data="{ openParentId: null, searchInput: '' }" class="lg:sticky lg:top-8 h-fit">
+                <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                    <h3 class="text-xl font-header font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg>
+                        Filter & Kategori
+                    </h3>
+                    
+                                        <input type="text" x-model="searchInput" placeholder="Cari di Katalog..." class="w-full px-4 py-2 mb-4 text-sm border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-0 transition">
 
-      <main>
-        <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          <template id="skeleton">
-            <div class="animate-pulse p-6 bg-white rounded-xl shadow-lg border border-gray-100">
-              <div class="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
-              <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div class="h-10 bg-primary-200 rounded-lg w-full"></div>
+                                        <div class="space-y-1 mt-4 max-h-96 overflow-y-auto">
+                        <a href="/" class="flex items-center px-3 py-2 text-sm rounded-lg font-semibold transition"
+                           :class="[window.location.pathname === '/' ? 'bg-primary-500 text-white shadow-md hover:bg-primary-600' : 'text-gray-700 hover:bg-gray-100']"
+                           onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
+                             Semua Produk
+                        </a>
+                        
+                                                <div id="category-sidebar-list" class="space-y-1">
+                                                    </div>
+                    </div>
+                </div>
+            </aside>
+
+                        <div class="lg:flex-1">
+                                <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-md mb-6 border-l-4 border-gray-300">
+                    <div id="result-count" class="text-lg font-medium text-gray-700">Memuat...</div>
+                    
+                    <div class="relative mt-3 sm:mt-0" x-data="{ open: false }">
+                        <button @click="open = !open" type="button" class="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+                            Urutkan: &nbsp; <span id="selectedSortName" class="font-semibold text-primary-700">Populer</span>
+                            <svg class="ml-2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" :class="{ 'rotate-180': open }"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                            <div class="py-1" id="sort-options-list">
+                                                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                                <main>
+                    <div id="product-list" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                        <template id="skeleton">
+                            <div class="animate-pulse p-4 bg-white rounded-xl shadow-md border border-gray-100">
+                                <div class="w-full aspect-square bg-gray-200 rounded-lg mb-3"></div>
+                                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                                <div class="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                                <div class="h-8 bg-primary-200 rounded-lg w-full"></div>
+                            </div>
+                        </template>
+
+                        <div id="loading-container" class="col-span-full">
+                            <div class="p-6 bg-white rounded-xl shadow-lg text-center text-primary-600 font-semibold">Memuat produk...</div>
+                        </div>
+                    </div>
+
+                    <div id="error-area" class="mt-8 hidden">
+                        <p class="text-red-600 bg-red-50 border border-red-200 p-4 rounded-xl text-center font-medium">Gagal memuat produk. Silakan coba refresh.</p>
+                    </div>
+                    
+                                        <div id="pagination-container" class="mt-8 flex justify-center"></div>
+                </main>
             </div>
-          </template>
-
-          <div id="loading-container" class="col-span-full">
-            <div class="p-6 bg-white rounded-xl shadow-lg text-center text-primary-600 font-semibold">Memuat produk...</div>
-          </div>
-        </div>
-
-        <div id="error-area" class="mt-8 hidden">
-          <p class="text-red-600 bg-red-50 border border-red-200 p-4 rounded-xl text-center font-medium">Gagal memuat produk. Silakan coba refresh.</p>
-        </div>
-      </main>
+        </section>
     </div>
 
-        <div id="product-detail-page" class="hidden transition-opacity duration-300">
+        <div id="product-detail-page" class="hidden transition-opacity duration-500">
           </div>
   </div>
 
-    <footer class="mt-12 border-t border-gray-200 py-6 bg-white">
+    <footer class="mt-12 border-t-4 border-gray-300 py-6 bg-white shadow-inner">
     <div class="container mx-auto max-w-7xl px-4 md:px-8 text-center text-sm text-gray-500">
-      <p>&copy; 2025 Mini Commerce. Dibuat dengan Hono & Cloudflare Pages.</p>
+      <p>&copy; 2025 Digital Commerce. Dibuat dengan Hono & Cloudflare Pages. Tampilan Premium.</p>
     </div>
   </footer>
 
   <script>
+    // --- Utilities (Sama) ---
     function escapeHtml(str) {
       if (typeof str !== 'string') return str == null ? '' : String(str);
       return str.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
@@ -115,6 +151,15 @@
     // --- Konstan & Elemen ---
     const API_PRODUCTS = '/api/store/products';
     const API_PRODUCT_BY_SLUG = '/api/store/products/slug/';
+    
+    const SORT_OPTIONS = [
+      { value: 'popularity-desc', label: 'Populer' },
+      { value: 'price-asc', label: 'Harga Terendah' },
+      { value: 'price-desc', label: 'Harga Tertinggi' },
+      { value: 'name-asc', label: 'Nama (A-Z)' },
+      { value: 'name-desc', label: 'Nama (Z-A)' },
+      { value: 'created_at-desc', label: 'Terbaru' },
+    ];
 
     const pageTitleEl = document.getElementById('page-title');
     const productListPage = document.getElementById('product-list-page');
@@ -124,15 +169,20 @@
     const productListEl = document.getElementById('product-list');
     const skeletonTmpl = document.getElementById('skeleton');
     const errorArea = document.getElementById('error-area');
-    const searchInput = document.getElementById('search');
-    const categoryPills = document.getElementById('category-pills');
     const resultCount = document.getElementById('result-count');
+    const sortOptionsList = document.getElementById('sort-options-list');
+    const selectedSortNameEl = document.getElementById('selectedSortName');
+    const categorySidebarList = document.getElementById('category-sidebar-list');
 
+    // State (Sama seperti sebelumnya, tapi kita fokus pada pembaruan tampilan)
     let products = [], filtered = [], categories = ['Semua'];
+    let currentSearchQuery = '';
+    let currentSort = SORT_OPTIONS[0].value;
+    let currentCategory = 'Semua';
 
     // --- Logic Halaman List ---
 
-    function renderSkeletons(count = 6) {
+    function renderSkeletons(count = 8) {
       productListEl.innerHTML = '';
       for (let i = 0; i < count; i++) {
         const node = skeletonTmpl.content.cloneNode(true);
@@ -143,12 +193,12 @@
     function renderProducts(list) {
       productListEl.innerHTML = '';
       if (!list || list.length === 0) {
-        productListEl.innerHTML = '<div class="col-span-full p-6 bg-white rounded-xl shadow text-center text-gray-500">Belum ada produk yang ditemukan.</div>';
-        resultCount.textContent = '0 produk';
+        productListEl.innerHTML = '<div class="col-span-full p-6 bg-white rounded-xl shadow-lg text-center text-gray-500 font-medium">Tidak ada produk yang ditemukan.</div>';
+        resultCount.textContent = '0 Produk Ditemukan';
         return;
       }
       list.forEach(p => {
-        const img = escapeHtml(p.image_url || 'https://placehold.co/600x400/f3f4f6/9ca3af?text=Produk+Digital');
+        const img = escapeHtml(p.image_url || 'https://placehold.co/600x400/f8fafc/64748b?text=DIGITAL');
         const name = escapeHtml(p.name || '—');
         const category = escapeHtml(p.category_name || 'Tanpa Kategori');
         const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
@@ -156,23 +206,22 @@
         const href = `/product/${slugOrId}`;
 
         const card = document.createElement('article');
-        card.className = 'bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5';
+        card.className = 'bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] transform';
         
         card.innerHTML = `
           <a href="${href}" class="block" onclick="event.preventDefault(); history.pushState(null, '', '${href}'); router();">
-            <div class="w-full h-48 bg-gray-100 overflow-hidden">
-              <img loading="lazy" src="${img}" alt="${name}" class="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.03]">
+            <div class="w-full aspect-square bg-gray-50 overflow-hidden relative">
+              <img loading="lazy" src="${img}" alt="${name}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.1]">
+              <span class="absolute top-2 right-2 text-xs font-semibold text-white bg-primary-600 px-2 py-0.5 rounded-full shadow-md">${category}</span>
             </div>
-            <div class="p-5">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1 rounded-full">${category}</span>
-                <span class="text-lg font-bold text-accent">Rp ${price}</span>
-              </div>
-              <h3 class="text-xl font-bold mt-3 truncate text-gray-900">${name}</h3>
-              <p class="mt-2 text-sm text-gray-500 line-clamp-2">${escapeHtml(p.description || 'Deskripsi belum tersedia.')}</p>
-              <div class="mt-5">
-                <button class="w-full inline-flex items-center justify-center gap-2 bg-primary-600 text-white py-2.5 px-4 rounded-lg shadow-md hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 font-semibold transition">
-                  Beli Sekarang
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mt-1 truncate text-gray-900">${name}</h3>
+              <p class="mt-1 text-2xl font-bold text-accent">Rp ${price}</p>
+              
+              <div class="mt-4">
+                <button class="w-full inline-flex items-center justify-center gap-2 bg-primary-600 text-white py-2.5 px-3 rounded-xl shadow-md hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 font-medium text-sm transition">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.35 13 5.378 13h12.5a.5.5 0 000-1H5.378c-.282 0-.58.125-.712.315-.226.297-.367.73-.24 1.144L6 17a1 1 0 001 1h8a1 1 0 100-2H7.071l.78-3.124h8.43c.725 0 1.36-.36 1.733-.948l1.735-2.733a1.001 1.001 0 00.007-.803.996.996 0 00-.734-.693l-4.137-.996L12 8l-.75-3H4.22L3.916 2.042A1 1 0 003 1z" /></svg>
+                  Beli Instan
                 </button>
               </div>
             </div>
@@ -180,106 +229,171 @@
         `;
         productListEl.appendChild(card);
       });
-      resultCount.textContent = `${list.length} produk`;
+      resultCount.textContent = `${list.length} Produk Ditemukan`;
     }
 
-    function renderCategoryPills() {
-      categoryPills.innerHTML = '';
-      categories.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = cat;
-        btn.className = 'px-4 py-1.5 rounded-full text-sm font-medium border-2 border-gray-200 bg-white text-gray-700 hover:bg-primary-50 hover:text-primary-700 whitespace-nowrap transition-colors duration-200';
-        if (cat === 'Semua') btn.classList.add('bg-primary-600', 'text-white', 'border-primary-600', 'hover:bg-primary-700', 'hover:text-white');
-        btn.addEventListener('click', () => {
-          Array.from(categoryPills.children).forEach(c => {
-            c.classList.remove('bg-primary-600','text-white','border-primary-600', 'hover:bg-primary-700', 'hover:text-white');
-            c.classList.add('bg-white', 'text-gray-700', 'border-gray-200', 'hover:bg-primary-50', 'hover:text-primary-700');
-          });
-          btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200', 'hover:bg-primary-50', 'hover:text-primary-700');
-          btn.classList.add('bg-primary-600','text-white','border-primary-600', 'hover:bg-primary-700', 'hover:text-white');
-          filterByCategory(cat);
-        });
-        categoryPills.appendChild(btn);
+    function renderCategorySidebar(allCategories) {
+      categorySidebarList.innerHTML = '';
+      allCategories.filter(c => c !== 'Semua').forEach(cat => {
+        const link = document.createElement('a');
+        link.href = `/?category=${encodeURIComponent(cat)}`;
+        link.textContent = cat;
+        link.className = 'flex items-center px-3 py-2 text-sm rounded-lg font-medium transition';
+        link.onclick = (e) => {
+          e.preventDefault();
+          history.pushState(null, '', link.href);
+          router();
+        };
+        
+        link.setAttribute(':class', `['${cat}' === currentCategory ? 'bg-primary-100 text-primary-800 font-semibold' : 'text-gray-700 hover:bg-gray-100']`);
+        categorySidebarList.appendChild(link);
+      });
+    }
+    
+    function renderSortOptions() {
+      sortOptionsList.innerHTML = '';
+      SORT_OPTIONS.forEach(opt => {
+        const link = document.createElement('a');
+        link.href = `/?sort_by=${opt.value.split('-')[0]}&sort_order=${opt.value.split('-')[1]}`;
+        link.textContent = opt.label;
+        link.className = 'text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition';
+        if (opt.value === currentSort) {
+          link.classList.add('bg-primary-50', 'text-primary-800', 'font-semibold');
+        }
+
+        link.onclick = (e) => {
+          e.preventDefault();
+          history.pushState(null, '', link.href);
+          router();
+        };
+        sortOptionsList.appendChild(link);
       });
     }
 
-    function filterByCategory(cat) {
-      if (cat === 'Semua') applySearch(products);
-      else applySearch(products.filter(p => (p.category_name || 'Tanpa Kategori') === cat));
-    }
 
-    function applySearch(list) {
-      const q = (searchInput.value || '').trim().toLowerCase();
-      if (!q) filtered = list.slice();
-      else filtered = list.filter(p => ((p.name||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category_name||'').toLowerCase().includes(q)));
-      renderProducts(filtered);
+    function filterAndSortProducts() {
+      let list = products.slice();
+
+      // 1. Filter Kategori
+      if (currentCategory !== 'Semua') {
+        list = list.filter(p => (p.category_name || 'Tanpa Kategori') === currentCategory);
+      }
+
+      // 2. Filter Pencarian
+      const q = currentSearchQuery.trim().toLowerCase();
+      if (q) {
+        list = list.filter(p => 
+          ((p.name||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category_name||'').toLowerCase().includes(q))
+        );
+      }
+
+      // 3. Sorting
+      const [sort_by, sort_order] = currentSort.split('-');
+      
+      // Sort logic (sederhana karena data di sisi klien)
+      list.sort((a, b) => {
+        let valA, valB;
+        
+        switch(sort_by) {
+          case 'price':
+            valA = Number(a.price || 0);
+            valB = Number(b.price || 0);
+            break;
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            return sort_order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          case 'created_at':
+            // Asumsi created_at atau id dapat digunakan sebagai proksi waktu
+            valA = Number(a.id); 
+            valB = Number(b.id);
+            break;
+          case 'popularity':
+          default:
+            // Di sini harusnya ada logic popularitas yang lebih kompleks, kita pakai default name
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            return valA.localeCompare(valB); // Default asc for name
+        }
+        
+        if (sort_by === 'name' || sort_by === 'popularity') return 0; // Sudah ditangani di atas
+        return sort_order === 'asc' ? (valA - valB) : (valB - valA);
+      });
+
+      renderProducts(list);
     }
 
     async function loadProducts() {
       productListPage.classList.remove('hidden', 'opacity-0');
       productDetailPage.classList.add('hidden', 'opacity-0');
-      pageTitleEl.textContent = 'Toko Digital | Mini Commerce';
+      pageTitleEl.textContent = 'Katalog Produk | Digital Commerce';
 
       errorArea.classList.add('hidden');
-      renderSkeletons(8); // Tampilkan 8 skeleton
+      renderSkeletons(8); 
+      
       try {
         const res = await fetch(API_PRODUCTS);
         const parsed = await parseJsonResponse(res);
+        
         if (!res.ok) {
           console.error('Load products error:', parsed.raw || parsed.json || res.status);
-          productListEl.innerHTML = '<div class="col-span-full p-6 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 font-medium">Gagal memuat produk.</div>';
-          errorArea.classList.remove('hidden'); resultCount.textContent = '0 produk'; return;
+          productListEl.innerHTML = '<div class="col-span-full p-6 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 font-medium">Gagal memuat produk dari API.</div>';
+          errorArea.classList.remove('hidden'); resultCount.textContent = '0 Produk Ditemukan'; return;
         }
+        
         const data = Array.isArray(parsed.json) ? parsed.json : (parsed.json && (parsed.json.data || parsed.json.results || parsed.json.items)) || [];
         products = data.map(p => ({ id: p.id, slug: p.slug, name: p.name, description: p.description, price: p.price, image_url: p.image_url, category_name: p.category_name || p.category }));
+        
         const set = new Set();
         products.forEach(p => set.add(p.category_name || 'Tanpa Kategori'));
         categories = ['Semua', ...Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b))];
-        renderCategoryPills();
-        applySearch(products);
+        
+        renderCategorySidebar(categories);
+        renderSortOptions();
+        filterAndSortProducts(); // Terapkan filter & sort setelah data dimuat
+        
       } catch (err) {
         console.error('Unexpected error loading products', err);
-        productListEl.innerHTML = '<div class="col-span-full p-6 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 font-medium">Gagal memuat produk.</div>';
-        errorArea.classList.remove('hidden'); resultCount.textContent = '0 produk';
+        productListEl.innerHTML = '<div class="col-span-full p-6 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 font-medium">Terjadi kesalahan sistem saat memuat produk.</div>';
+        errorArea.classList.remove('hidden'); resultCount.textContent = '0 Produk Ditemukan';
       }
     }
 
-    // --- Logic Halaman Detail Produk Baru ---
+    // --- Logic Halaman Detail Produk (Diperbarui tampilannya) ---
 
     function renderProductDetail(p) {
       productDetailPage.classList.remove('hidden', 'opacity-0');
       productListPage.classList.add('hidden', 'opacity-0');
-      pageTitleEl.textContent = `${p.name} | Toko Digital`;
+      pageTitleEl.textContent = `${p.name} | Digital Commerce`;
 
-      const img = escapeHtml(p.image_url || 'https://placehold.co/800x600/f3f4f6/9ca3af?text=Produk+Digital');
+      const img = escapeHtml(p.image_url || 'https://placehold.co/800x600/f8fafc/64748b?text=DIGITAL');
       const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
       
       productDetailPage.innerHTML = `
-        <a href="/" class="icon-back text-primary-600 hover:text-primary-800 font-semibold flex items-center mb-6 transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
-          Kembali ke Semua Produk
+        <a href="/" class="icon-back text-gray-700 hover:text-primary-600 font-medium flex items-center mb-6 transition text-lg" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
+          Kembali ke Katalog
         </a>
-        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-12">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-12 border border-gray-200">
           <div class="flex flex-col lg:flex-row gap-10">
                         <div class="lg:w-1/2">
-              <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden shadow-lg">
+              <div class="aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-xl border-4 border-gray-100">
                 <img src="${img}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover">
               </div>
             </div>
                         <div class="lg:w-1/2">
-              <span class="inline-block text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1 rounded-full mb-3 uppercase tracking-wider">${escapeHtml(p.category_name || 'Umum')}</span>
-              <h2 class="text-4xl font-extrabold text-gray-900 mb-4">${escapeHtml(p.name)}</h2>
+              <span class="inline-block text-xs font-bold text-primary-800 bg-primary-100 px-3 py-1 rounded-full mb-3 uppercase tracking-widest">${escapeHtml(p.category_name || 'Umum')}</span>
+              <h2 class="text-4xl font-header font-extrabold text-gray-900 mb-4">${escapeHtml(p.name)}</h2>
               
-              <div class="flex items-baseline gap-4 mb-8 border-t border-b py-4">
-                <span class="text-2xl font-bold text-gray-500">Harga:</span>
-                <span class="text-4xl font-extrabold text-accent">Rp ${price}</span>
+              <div class="flex items-baseline gap-4 mb-8 border-t border-b py-4 border-gray-200">
+                <span class="text-3xl font-bold text-gray-500">Harga:</span>
+                <span class="text-5xl font-header font-extrabold text-accent">Rp ${price}</span>
               </div>
 
-              <h3 class="text-2xl font-bold mb-4 text-gray-800">Deskripsi Produk</h3>
-              <p class="text-gray-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.description)}</p>
+              <h3 class="text-2xl font-semibold mb-4 text-gray-800">Tentang Produk</h3>
+              <p class="text-gray-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.description || 'Deskripsi belum tersedia.')}</p>
 
-              <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mt-10 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3.5 px-6 rounded-xl text-xl font-bold shadow-2xl hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition duration-300">
-                <span class="icon-cart"></span> Beli Sekarang
+              <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mt-10 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3.5 px-6 rounded-xl text-xl font-bold shadow-2xl hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition duration-300 transform hover:scale-[1.01]">
+                <span class="icon-cart"></span> Beli Instan & Download
               </button>
             </div>
           </div>
@@ -288,6 +402,7 @@
     }
 
     async function loadProductDetail(slug) {
+      // ... (Logika loading dan error handling sama)
       productDetailPage.innerHTML = '<div class="text-center p-10 bg-white rounded-xl shadow-lg">Memuat detail produk...</div>';
       productListPage.classList.add('hidden', 'opacity-0');
       productDetailPage.classList.remove('hidden', 'opacity-0');
@@ -298,11 +413,11 @@
 
         if (!res.ok) {
           productDetailPage.innerHTML = `
-            <div class="text-center p-20 bg-white rounded-xl shadow-lg">
-              <p class="text-3xl font-bold text-red-500 mb-4">404</p>
-              <p class="text-xl text-gray-700">Produk **${escapeHtml(slug)}** tidak ditemukan.</p>
+            <div class="text-center p-20 bg-white rounded-xl shadow-lg border border-red-200">
+              <p class="text-3xl font-header font-bold text-red-500 mb-4">404 - Tidak Ditemukan</p>
+              <p class="text-xl text-gray-700">Produk yang Anda cari tidak tersedia.</p>
               <a href="/" class="mt-6 icon-back inline-flex items-center text-primary-600 hover:text-primary-800 font-semibold transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
-                Kembali ke Beranda
+                Kembali ke Katalog
               </a>
             </div>
           `;
@@ -314,7 +429,7 @@
 
       } catch (err) {
         console.error('Unexpected error loading product detail', err);
-        productDetailPage.innerHTML = '<div class="text-center p-10 bg-red-50 rounded-xl shadow border border-red-200 text-red-700 font-medium">Terjadi kesalahan server saat memuat detail produk.</div>';
+        productDetailPage.innerHTML = '<div class="text-center p-10 bg-red-50 rounded-xl shadow border border-red-200 text-red-700 font-medium">Terjadi kesalahan sistem saat memuat detail produk.</div>';
       }
     }
 
@@ -323,6 +438,22 @@
     function router() {
       const path = window.location.pathname;
       const match = path.match(/^\/product\/([^/]+)$/);
+      
+      // Ambil filter & sort dari URL
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Update state category
+      const urlCat = urlParams.get('category');
+      currentCategory = urlCat ? decodeURIComponent(urlCat) : 'Semua';
+      
+      // Update state sort
+      const urlSortBy = urlParams.get('sort_by') || 'popularity';
+      const urlSortOrder = urlParams.get('sort_order') || 'desc';
+      currentSort = `${urlSortBy}-${urlSortOrder}`;
+
+      // Update tampilan sort yang dipilih
+      const selectedOption = SORT_OPTIONS.find(o => o.value === currentSort);
+      selectedSortNameEl.textContent = selectedOption ? selectedOption.label : 'Populer';
 
       if (match) {
         // Rute: /product/:slug
@@ -334,16 +465,18 @@
       }
     }
 
+    // Event Listener Pencarian
+    document.querySelector('aside input[type="text"]').addEventListener('input', (() => { 
+      let t; 
+      return (e) => { 
+        currentSearchQuery = e.target.value;
+        clearTimeout(t); 
+        t = setTimeout(()=>filterAndSortProducts(), 300); 
+      }; 
+    })());
+
     // Panggil router saat halaman dimuat dan ketika menggunakan tombol back/forward browser
     window.addEventListener('popstate', router);
-    searchInput.addEventListener('input', (() => { let t; return () => { clearTimeout(t); t = setTimeout(()=>applySearch(products), 250); }; })());
-
-    // Memastikan link internal yang mengarah ke home menggunakan router
-    document.querySelector('header a[href="/"]').addEventListener('click', (e) => {
-      e.preventDefault();
-      history.pushState(null, '', '/');
-      router();
-    });
 
     router();
   </script>
