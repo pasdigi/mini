@@ -1,3 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title id="page-title">Digital Commerce | Toko Digital Instan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js" defer></script>
+  <script>
+    // Konfigurasi Tailwind CSS untuk tampilan rapi dan proporsional
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { // Dark Blue/Cyan (Profesional)
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#06b6d4', // Cyan/Teal
+              600: '#0891b2',
+            800: '#075985',
+            },
+            accent: '#10b981', // Hijau Emerald untuk Aksi/Harga
+          }
+        },
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          header: ['Poppins', 'sans-serif'],
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3 { font-family: 'Poppins', sans-serif; }
+    .icon-back:before { content: "←"; margin-right: 0.5rem; }
+    /* Ukuran ekstra kecil untuk badge */
+    .text-xxs { font-size: 0.65rem; line-height: 1rem; } 
+    /* Sembunyikan Alpine.js components sebelum inisialisasi untuk mencegah flicker */
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
   <div class="container mx-auto p-4 md:p-8 max-w-7xl flex-grow">
         <header class="mb-8 p-4 bg-white shadow-lg rounded-xl flex justify-between items-center border-b border-primary-200">
@@ -13,7 +57,7 @@
         <div id="product-list-page" class="transition-opacity duration-500">
         
         <section class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6 lg:gap-8">
-                        <aside class="hidden lg:block lg:sticky lg:top-8 h-fit">
+                        <aside class="lg:sticky lg:top-8 h-fit hidden lg:block">
                 <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100">
                     <h3 class="text-lg font-header font-semibold text-gray-800 mb-4 border-b pb-2">Filter & Pencarian</h3>
                     
@@ -58,11 +102,12 @@
                             </button>
                             <div x-show="openSortMobile" @click.away="openSortMobile = false" x-transition class="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" x-cloak>
                                 <div class="py-1" id="sort-options-mobile">
-                                                                </div>
+                                                                    </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                                 <div class="hidden lg:flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-lg shadow-sm mb-4 border border-gray-200">
                     <div id="result-count" class="text-sm font-medium text-gray-600">Memuat...</div>
@@ -104,6 +149,9 @@
             </div>
         </section>
     </div>
+
+        <div id="product-detail-page" class="hidden transition-opacity duration-500">
+          </div>
   </div>
 
     <footer class="mt-8 border-t border-gray-200 py-4 bg-white">
@@ -138,6 +186,7 @@
       { value: 'created_at-desc', label: 'Terbaru' },
     ];
 
+    const pageTitleEl = document.getElementById('page-title');
     const productListPage = document.getElementById('product-list-page');
     const productDetailPage = document.getElementById('product-detail-page');
 
@@ -146,13 +195,14 @@
     const skeletonTmpl = document.getElementById('skeleton');
     const errorArea = document.getElementById('error-area');
     
+    // Search input memiliki dua instance sekarang
     const searchInputDesktop = document.getElementById('search');
     const searchInputMobile = document.getElementById('search-mobile'); 
 
     const resultCount = document.getElementById('result-count');
     const sortOptionsList = document.getElementById('sort-options-list');
-    const selectedSortNameEl = document.getElementById('selectedSortName'); 
-    const selectedSortNameMobileEl = document.getElementById('selectedSortNameMobile');
+    const selectedSortNameEl = document.getElementById('selectedSortName'); // Desktop
+    const selectedSortNameMobileEl = document.getElementById('selectedSortNameMobile'); // Mobile
     
     const categorySidebarList = document.getElementById('category-sidebar-list');
     const categoryOptionsMobile = document.getElementById('category-options-mobile');
@@ -189,6 +239,7 @@
         const name = escapeHtml(p.name || '—');
         const category = escapeHtml(p.category_name || 'Umum');
         
+        // PENTING: Ukuran harga dikecilkan menjadi text-xl
         const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
         const slugOrId = encodeURIComponent(p.slug || p.id);
         const href = `/product/${slugOrId}`;
@@ -338,7 +389,7 @@
       } else {
         currentSearchInput = searchInputMobile;
       }
-      currentSearchQuery = currentSearchInput ? currentSearchInput.value : '';
+      currentSearchQuery = currentSearchInput.value;
       
 
       // 1. Filter Kategori
@@ -381,7 +432,7 @@
         }
         
         if (sort_by === 'name' || sort_by === 'popularity') return 0; 
-        return sort_order === 'asc' ? (valA - valB) : (valB - valA);
+        return sort_order === 'asc' ? (valA - valB) : (valB - a.id);
       });
 
       renderProducts(list);
@@ -390,21 +441,10 @@
     }
 
     async function loadProducts() {
-      
-      // Cek apakah kita seharusnya berada di halaman detail
-      if (window.location.pathname.startsWith('/product/')) {
-        // Jika URL adalah /product/slug, redirect router ke product.html
-        // Ini akan menyebabkan browser memuat file product.html
-        const slug = window.location.pathname.substring(8);
-        window.location.replace(`/product/${slug}${window.location.search}`);
-        return;
-      }
-      
-      // Tampilkan halaman list
       productListPage.classList.remove('hidden', 'opacity-0');
-      
-      // Simulate Data Fetch (Placeholder)
-      // ====================================
+      productDetailPage.classList.add('hidden', 'opacity-0');
+      pageTitleEl.textContent = 'Katalog Produk | Digital Commerce';
+
       errorArea.classList.add('hidden');
       renderSkeletons(10); 
       
@@ -430,52 +470,128 @@
         productListEl.innerHTML = '<div class="col-span-full p-4 bg-red-50 rounded-xl shadow border border-red-200 text-center text-red-700 text-sm font-medium">Terjadi kesalahan sistem saat memuat produk.</div>';
         errorArea.classList.remove('hidden'); resultCount.textContent = '0 Produk Ditemukan';
       }
-      // ====================================
     }
 
-    // --- Client-Side Router ---
+    // --- Logic Halaman Detail Produk ---
+
+    function renderProductDetail(p) {
+      productDetailPage.classList.remove('hidden', 'opacity-0');
+      productListPage.classList.add('hidden', 'opacity-0');
+      pageTitleEl.textContent = `${p.name} | Digital Commerce`;
+
+      const img = escapeHtml(p.image_url || 'https://placehold.co/800x800/f8fafc/64748b?text=PRODUK');
+      // PENTING: Ukuran harga (text-3xl)
+      const price = (typeof p.price === 'number' || !isNaN(Number(p.price))) ? new Intl.NumberFormat('id-ID').format(Number(p.price)) : '-';
+      
+      productDetailPage.innerHTML = `
+        <a href="/" class="icon-back text-gray-700 hover:text-primary-600 font-medium flex items-center mb-6 transition text-sm" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
+          Kembali ke Katalog
+        </a>
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 border border-gray-100">
+          <div class="flex flex-col lg:flex-row gap-8">
+                        <div class="lg:w-1/2">
+              <div class="aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-lg border-4 border-gray-100">
+                <img src="${img}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover">
+              </div>
+            </div>
+                        <div class="lg:w-1/2">
+              <span class="inline-block text-xs font-semibold text-primary-800 bg-primary-100 px-2 py-0.5 rounded-full mb-2 uppercase tracking-wide">${escapeHtml(p.category_name || 'Umum')}</span>
+              <h2 class="text-3xl font-header font-bold text-gray-900 mb-4">${escapeHtml(p.name)}</h2>
+              
+              <div class="flex items-baseline gap-3 mb-6 border-t border-b py-3 border-gray-200">
+                <span class="text-xl font-semibold text-gray-500">Harga:</span>
+                <span class="text-3xl font-header font-extrabold text-accent">Rp ${price}</span>
+              </div>
+
+              <h3 class="text-xl font-semibold mb-3 text-gray-800">Deskripsi</h3>
+              <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.description || 'Deskripsi belum tersedia.')}</p>
+
+              <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mt-8 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3 px-6 rounded-lg text-lg font-bold shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition">
+                <i class="fas fa-shopping-cart h-5 w-5"></i> Beli Instan & Download
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadProductDetail(slug) {
+      productDetailPage.innerHTML = '<div class="text-center p-10 bg-white rounded-xl shadow-lg">Memuat detail produk...</div>';
+      productListPage.classList.add('hidden', 'opacity-0');
+      productDetailPage.classList.remove('hidden', 'opacity-0');
+
+      try {
+        const res = await fetch(`${API_PRODUCT_BY_SLUG}${encodeURIComponent(slug)}`);
+        const parsed = await parseJsonResponse(res);
+
+        if (!res.ok) {
+          productDetailPage.innerHTML = `
+            <div class="text-center p-10 bg-white rounded-xl shadow-lg border border-red-200">
+              <p class="text-xl font-header font-bold text-red-500 mb-3">404 - Tidak Ditemukan</p>
+              <p class="text-sm text-gray-700">Produk yang Anda cari tidak tersedia.</p>
+              <a href="/" class="mt-4 icon-back inline-flex items-center text-primary-600 hover:text-primary-800 font-medium transition" onclick="event.preventDefault(); history.pushState(null, '', '/'); router();">
+                Kembali ke Katalog
+              </a>
+            </div>
+          `;
+          pageTitleEl.textContent = '404 - Tidak Ditemukan';
+          return;
+        }
+
+        renderProductDetail(parsed.json);
+
+      } catch (err) {
+        productDetailPage.innerHTML = '<div class="text-center p-4 bg-red-50 rounded-xl shadow border border-red-200 text-red-700 text-sm font-medium">Terjadi kesalahan sistem saat memuat detail produk.</div>';
+      }
+    }
+
+    // --- Client-Side Router & Event Handlers ---
 
     function router() {
       const path = window.location.pathname;
+      const match = path.match(/^\/product\/([^/]+)$/);
       
-      // Periksa jika rute adalah detail produk, jika ya, redirect ke shell product.html
-      if (path.startsWith('/product/')) {
-        const slug = path.substring(8);
-        window.location.replace(`/product/${slug}${window.location.search}`);
-        return;
-      }
-      
-      // Logika penentuan filter/sort (Sama)
       const urlParams = new URLSearchParams(window.location.search);
+      
       const urlCat = urlParams.get('category');
       currentCategory = urlCat ? decodeURIComponent(urlCat) : 'Semua';
+      
       const urlSortBy = urlParams.get('sort_by') || 'popularity';
       const urlSortOrder = urlParams.get('sort_order') || 'desc';
       currentSort = `${urlSortBy}-${urlSortOrder}`;
-      
+
       // Update display name after reading currentSort
       const selectedOption = SORT_OPTIONS.find(o => o.value === currentSort);
       if (selectedSortNameEl) selectedSortNameEl.textContent = selectedOption ? selectedOption.label : 'Populer';
       if (selectedSortNameMobileEl) selectedSortNameMobileEl.textContent = selectedOption ? selectedOption.label : 'Populer';
 
-      // Load products
-      loadProducts();
+      if (match) {
+        const slug = decodeURIComponent(match[1]);
+        loadProductDetail(slug);
+      } else {
+        loadProducts();
+      }
     }
     
-    // Debounced search handler
+    // Debounced search handler for efficiency
     let searchTimeout;
     window.handleSearchDebounced = () => {
       clearTimeout(searchTimeout); 
       searchTimeout = setTimeout(() => {
+        // Tentukan input yang digunakan
         const activeInput = window.innerWidth >= 1024 ? searchInputDesktop : searchInputMobile;
         currentSearchQuery = activeInput ? activeInput.value : '';
         filterAndSortProducts();
       }, 300); 
     };
     
-    // Event Listener Pencarian
+
+    // Event Listener Pencarian di Sidebar (Desktop)
     if (searchInputDesktop) searchInputDesktop.addEventListener('input', window.handleSearchDebounced);
+
+    // Event Listener Pencarian di Mobile Bar
     if (searchInputMobile) searchInputMobile.addEventListener('input', window.handleSearchDebounced);
+
 
     // Memastikan link internal yang mengarah ke home menggunakan router
     document.querySelector('header a[href="/"]').addEventListener('click', (e) => {
@@ -485,8 +601,6 @@
     });
     
     window.addEventListener('popstate', router);
-    
-    // Trigger router on load
     router();
   </script>
 </body>
