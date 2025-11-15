@@ -643,21 +643,17 @@ api.all('*', (c) => {
 });
 
 /* -----------------------------------------------
-    RUTE HALAMAN DINAMIS UNTUK CLIENT-SIDE ROUTING
-    Rute ini menyajikan shell HTML statis (index.html) yang akan 
-    menangani rute dinamis seperti /product/xyz di sisi klien.
-    PENTING: Harus ditempatkan SEBELUM catch-all statis.
+    RUTE HALAMAN STATIS & DINAMIS (Client-Side Rendering Shells)
+    Memisahkan index.html dan product.html.
     ----------------------------------------------- */
-app.get('/product/*', serveStatic({ 
+// Rute detail produk memuat shell product.html
+app.get('/product/:slug', serveStatic({ 
     root: './public',
-    path: 'index.html' // Menggunakan index.html sebagai shell fallback untuk CSR
+    path: 'product.html' // Shell khusus untuk detail produk
 }));
 
-
-/* -----------------------------------------------
-    RUTE FILE STATIS (AKHIR)
-    Ini menangani semua rute yang tersisa (misalnya: /, /index.html, /style.css, /admin/login).
-    ----------------------------------------------- */
+// Rute dasar / (beranda) dan semua rute lain yang tidak terdefinisi (seperti /admin/login, /style.css)
+// memuat dari direktori statis /public, dengan fallback ke index.html untuk path root.
 app.get('*', serveStatic({ root: './public' }));
 
 
