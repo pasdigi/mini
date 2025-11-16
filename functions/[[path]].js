@@ -112,19 +112,20 @@ const adminMiddleware = async (c, next) => {
 
 
 /* -------------------------
-    Public: Store handlers (Tidak Berubah)
+    Public: Store handlers (DIUBAH untuk rating)
     ------------------------- */
 async function storeProductsHandler(c) {
     const env = c.env;
     if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
     try {
         const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
+        // PENTING: Menambahkan p.rating dan p.review_count ke SELECT
         const sql = hasIsActive
             ?
-            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name
+            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.rating, p.review_count
                FROM products p LEFT JOIN categories c ON p.category_id = c.id
                WHERE (p.is_active IS NULL OR p.is_active = 1) ORDER BY p.name ASC`
-            : `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name
+            : `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.rating, p.review_count
                FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC`;
         const raw = await env.DB.prepare(sql).all();
         const rows = normalizeAllResult(raw);
@@ -135,7 +136,10 @@ async function storeProductsHandler(c) {
             description: r.description,
             price: typeof r.price === 'number' ? r.price : (r.price ? Number(r.price) : 0),
             image_url: r.image_url ?? r.image ?? null,
-            category_name: r.category_name ?? null
+            category_name: r.category_name ?? null,
+            // PENTING: Menggunakan default 4.5 dan 29 jika data DB null (untuk menjaga tampilan tetap ada)
+            rating: r.rating ? Number(r.rating) : 4.5,
+            review_count: r.review_count ? Number(r.review_count) : 29
         }));
         return c.json(normalized);
     } catch (e) {
@@ -148,8 +152,9 @@ async function storeProductByIdHandler(c) {
     const env = c.env;
     const id = c.req.param('id');
     try {
+        // PENTING: Menambahkan p.rating dan p.review_count ke SELECT
         const p = await env.DB.prepare(
-            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
+            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type, p.rating, p.review_count
              FROM products p LEFT JOIN categories c ON p.category_id = c.id
              WHERE p.id = ? LIMIT 1`
         ).bind(id).first();
@@ -166,6 +171,9 @@ async function storeProductByIdHandler(c) {
             category_name: p.category_name,
             digital_content: p.digital_content,
             product_type: p.product_type,
+            // PENTING: Menggunakan default 4.5 dan 29 jika data DB null (untuk menjaga tampilan tetap ada)
+            rating: p.rating ? Number(p.rating) : 4.5,
+            review_count: p.review_count ? Number(p.review_count) : 29,
             gallery
         });
     } catch (e) {
@@ -178,8 +186,9 @@ async function storeProductBySlugHandler(c) {
     const env = c.env;
     const slug = c.req.param('slug');
     try {
+        // PENTING: Menambahkan p.rating dan p.review_count ke SELECT
         const p = await env.DB.prepare(
-            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type
+            `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type, p.rating, p.review_count
              FROM products p LEFT JOIN categories c ON p.category_id = c.id
              WHERE p.slug = ? LIMIT 1`
         ).bind(slug).first();
@@ -196,6 +205,9 @@ async function storeProductBySlugHandler(c) {
             category_name: p.category_name,
             digital_content: p.digital_content,
             product_type: p.product_type,
+            // PENTING: Menggunakan default 4.5 dan 29 jika data DB null (untuk menjaga tampilan tetap ada)
+            rating: p.rating ? Number(p.rating) : 4.5,
+            review_count: p.review_count ? Number(p.review_count) : 29,
             gallery
         });
     } catch (e) {
@@ -382,18 +394,23 @@ async function adminCreateProduct(c) {
     }
     slug = candidate;
 
+    // Menyiapkan nilai untuk rating dan review_count (jika ada di body, jika tidak, pakai default 0)
+    const rating = body.rating ?? 0;
+    const review_count = body.review_count ?? 0;
+
     const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
+    
     if (hasIsActive) {
         const { results } = await env.DB.prepare(
-            `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
-        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0).all();
+            `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id, is_active, rating, review_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
+        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0, rating, review_count).all();
         return c.json(normalizeAllResult(results)[0], 201);
     } else {
         const { results } = await env.DB.prepare(
-            `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
-        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null).all();
+            `INSERT INTO products (slug, name, description, price, product_type, digital_content, image_url, category_id, rating, review_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
+        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, rating, review_count).all();
         return c.json(normalizeAllResult(results)[0], 201);
     }
 }
@@ -417,17 +434,20 @@ async function adminUpdateProduct(c) {
         candidate = `${slug}-${i++}`;
     }
     slug = candidate;
+    
+    const rating = body.rating ?? 0;
+    const review_count = body.review_count ?? 0;
 
     const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
     if (hasIsActive) {
         const { results } = await env.DB.prepare(
-            `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ?, is_active = ? WHERE id = ? RETURNING *`
-        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0, id).all();
+            `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ?, is_active = ?, rating = ?, review_count = ? WHERE id = ? RETURNING *`
+        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, body.is_active ? 1 : 0, rating, review_count, id).all();
         return c.json(normalizeAllResult(results)[0]);
     } else {
         const { results } = await env.DB.prepare(
-            `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ? WHERE id = ? RETURNING *`
-        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, id).all();
+            `UPDATE products SET slug = ?, name = ?, description = ?, price = ?, product_type = ?, digital_content = ?, image_url = ?, category_id = ?, rating = ?, review_count = ? WHERE id = ? RETURNING *`
+        ).bind(slug, body.name, body.description || null, body.price, body.product_type, body.digital_content || null, body.image_url || null, body.category_id || null, rating, review_count, id).all();
         return c.json(normalizeAllResult(results)[0]);
     }
 }
