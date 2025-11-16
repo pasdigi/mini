@@ -545,13 +545,14 @@
                 <span class="text-3xl font-header font-extrabold text-accent">Rp ${price}</span>
               </div>
 
+              <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mb-6 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3 px-6 rounded-lg text-lg font-bold shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition">
+                <i class="fas fa-shopping-cart h-5 w-5"></i> Beli Instan & Download
+              </button>
+
               <h3 class="text-xl font-semibold mb-3 text-gray-800">Deskripsi</h3>
               <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.description || 'Deskripsi belum tersedia.')}</p>
 
-              <button onclick="alert('Checkout untuk ${escapeHtml(p.name)} akan segera diproses!')" class="mt-8 w-full inline-flex items-center justify-center gap-2 bg-accent text-white py-3 px-6 rounded-lg text-lg font-bold shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-accent/50 transition">
-                <i class="fas fa-shopping-cart h-5 w-5"></i> Beli Instan & Download
-              </button>
-            </div>
+              </div>
           </div>
         </div>
       `;
@@ -611,13 +612,10 @@
         const slug = decodeURIComponent(match[1]);
         loadProductDetail(slug);
       } else {
-        // PERBAIKAN LAZY LOADING: Jika produk sudah dimuat, JANGAN panggil API lagi, cukup filter.
+        // Cek apakah produk sudah di-load, jika belum, load. Jika sudah, filter saja.
         if (products.length === 0) {
           loadProducts();
         } else {
-          productListPage.classList.remove('hidden', 'opacity-0');
-          productDetailPage.classList.add('hidden', 'opacity-0');
-          pageTitleEl.textContent = 'Katalog Produk | Digital Commerce';
           filterAndSortProducts();
         }
       }
