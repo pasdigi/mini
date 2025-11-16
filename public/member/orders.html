@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesanan Saya</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#06b6d4', 600: '#0891b2', 800: '#075985' },
+                        accent: '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <header class="bg-white shadow-lg rounded-xl p-4 mb-8 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-primary-600">Member Area</h1>
+            <a href="/" class="text-sm text-gray-500 hover:text-primary-600">
+                <i class="fas fa-store mr-1"></i> Kembali ke Toko
+            </a>
+        </header>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6">
+            <!-- Sidebar Navigasi Member -->
+            <aside class="bg-white p-6 rounded-lg shadow-md h-fit">
+                <div class="flex items-center mb-6 pb-4 border-b">
+                    <div class="bg-primary-100 text-primary-800 w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg mr-3">
+                        <span id="user-initial">M</span>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800" id="user-name">Memuat Nama...</p>
+                        <p class="text-xs text-gray-500" id="user-role">Member</p>
+                    </div>
+                </div>
+
+                <nav class="space-y-1">
+                    <a href="/member/dashboard.html" class="flex items-center py-2 px-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-tachometer-alt w-5 mr-3"></i> Dashboard
+                    </a>
+                    <a href="/member/orders.html" class="flex items-center py-2 px-3 rounded-lg bg-primary-100 text-primary-800 font-medium">
+                        <i class="fas fa-shopping-basket w-5 mr-3"></i> Pesanan Saya
+                    </a>
+                    <a href="/member/profile.html" class="flex items-center py-2 px-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-user-circle w-5 mr-3"></i> Profil & Alamat
+                    </a>
+                    <button id="logout-btn" class="flex items-center w-full text-left py-2 px-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4 border-t pt-3">
+                        <i class="fas fa-sign-out-alt w-5 mr-3"></i> Logout
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Konten Utama Pesanan -->
+            <main class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Riwayat Pesanan Saya</h2>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Order</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produk</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table" class="bg-white divide-y divide-gray-200">
+                                <tr><td colspan="5" class="p-4 text-center text-gray-500">Memuat pesanan...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="loading-status" class="text-center mt-6 text-gray-500 hidden">Memuat data...</p>
+
+                </div>
+            </main>
+        </div>
+    </div>
+<script>
+    const API_MEMBER_ORDERS = '/api/member/orders'; // Nanti akan dibuat endpoint ini
+    const API_PROFILE = '/api/member/profile'; 
+    const API_LOGOUT = '/api/logout';
+    
+    // Elemen Sidebar
+    const userNameEl = document.getElementById('user-name');
+    const userInitialEl = document.getElementById('user-initial');
+    const userRoleEl = document.getElementById('user-role');
+    const tableBody = document.getElementById('orders-table');
+    const loadingStatus = document.getElementById('loading-status');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // Helper: Parse JSON
+    async function parseJsonResponse(res) {
+        const txt = await res.text();
+        try { return { ok: res.ok, status: res.status, json: JSON.parse(txt), raw: txt }; }
+        catch { return { ok: res.ok, status: res.status, json: null, raw: txt }; }
+    }
+    
+    // Helper: Redirect ke login
+    function redirectToLogin() {
+        window.location.href = '/member/login.html';
+    }
+
+    // Load data profil (untuk sidebar)
+    async function loadProfileData() {
+        try {
+            const res = await fetch(API_PROFILE, { credentials: 'include' }); 
+            const parsed = await parseJsonResponse(res);
+            
+            if (res.status === 401 || res.status === 403) { return redirectToLogin(); }
+
+            if (res.ok && parsed.json) {
+                const user = parsed.json;
+                userNameEl.textContent = user.name || 'Member';
+                userInitialEl.textContent = (user.name || 'M')[0].toUpperCase();
+                userRoleEl.textContent = user.role || 'member';
+            } else {
+                userNameEl.textContent = 'Member (Error)';
+            }
+            
+        } catch (err) {
+            console.error('Fetch profile data error:', err);
+        }
+    }
+
+    // Load data pesanan member
+    async function loadMemberOrders() {
+        loadingStatus.classList.remove('hidden');
+        tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Memuat pesanan...</td></tr>';
+
+        try {
+            // Nanti kita buat endpoint /api/member/orders
+            const res = await fetch(API_MEMBER_ORDERS, { credentials: 'include' }); 
+            const parsed = await parseJsonResponse(res);
+            
+            if (res.status === 401 || res.status === 403) { return redirectToLogin(); }
+
+            if (!res.ok) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Gagal memuat pesanan.</td></tr>';
+                return;
+            }
+
+            const orders = Array.isArray(parsed.json) ? parsed.json : (parsed.json?.data || []);
+            tableBody.innerHTML = '';
+
+            if (orders.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Anda belum memiliki pesanan.</td></tr>';
+            } else {
+                orders.forEach(o => {
+                    let statusColor = 'bg-gray-100 text-gray-800';
+                    if (o.status === 'PAID' || o.status === 'COMPLETED') { statusColor = 'bg-green-100 text-green-800'; } 
+                    else if (o.status === 'UNPAID') { statusColor = 'bg-yellow-100 text-yellow-800'; }
+                    else if (o.status === 'CANCELED') { statusColor = 'bg-red-100 text-red-800'; }
+
+                    const totalAmount = new Intl.NumberFormat('id-ID').format(o.total_amount || 0);
+
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900">${o.id}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">${o.product_name || 'Produk Dihapus'}</td>
+                            <td class="px-6 py-4 text-sm font-semibold text-accent">Rp ${totalAmount}</td>
+                            <td class="px-6 py-4 text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                                    ${o.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right text-sm font-medium">
+                                ${o.status === 'UNPAID' ? 
+                                    `<a href="/member/pay/${o.id}" class="text-primary-600 hover:text-primary-800">Bayar Sekarang</a>` : 
+                                    `<button class="text-gray-500 hover:text-gray-700" onclick="alert('Detail Order ID: ${o.id}')">Lihat Detail</button>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+        } catch (err) {
+            console.error('Error loading orders:', err);
+            tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Terjadi kesalahan sistem.</td></tr>';
+        } finally {
+            loadingStatus.classList.add('hidden');
+        }
+    }
+
+    // Event Logout
+    logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            await fetch(API_LOGOUT, { method: 'POST', credentials: 'include' });
+        } catch (err) {
+            console.warn('Logout error, forcing redirect:', err);
+        }
+        redirectToLogin();
+    });
+
+    // Load semua data
+    loadProfileData();
+    loadMemberOrders();
+</script>
+</body>
+</html>
