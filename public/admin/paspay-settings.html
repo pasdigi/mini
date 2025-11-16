@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pengaturan Paspay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen bg-gray-200">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-800 text-white p-4">
+            <h2 class="text-2xl font-bold mb-6">Admin Paspay</h2>
+            <nav>
+                <a href="/admin/dashboard.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                <a href="/admin/products.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Produk</a>
+                <a href="/admin/categories.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Kategori</a>
+                <a href="/admin/banners.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Banners</a>
+                <a href="/admin/orders.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Orders</a>
+                <a href="/admin/users.html" class="block py-2.5 px-4 rounded hover:bg-gray-700">Users</a>
+                <div class="pt-4 mt-4 border-t border-gray-700">
+                    <a href="/admin/paspay-settings.html" class="block py-2.5 px-4 rounded bg-gray-700 text-green-300">
+                        <i class="fas fa-link mr-2"></i> Paspay Gateway
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-md p-4">
+                <h1 class="text-2xl font-semibold text-gray-700">Pengaturan Integrasi Paspay</h1>
+            </header>
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                
+                <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">API & Webhook Configuration</h3>
+                    
+                    <form id="paspay-settings-form" class="space-y-4">
+                        
+                        <div>
+                            <label for="paspay_api_key" class="block text-sm font-medium text-gray-700 mb-1">Paspay API Key (Bearer Token)</label>
+                            <input type="text" id="paspay_api_key" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Dapat ditemukan di halaman Profil Paspay Anda.</p>
+                        </div>
+                        
+                        <div>
+                            <label for="paspay_project_id" class="block text-sm font-medium text-gray-700 mb-1">Project ID</label>
+                            <input type="number" id="paspay_project_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500" min="1">
+                        </div>
+
+                        <div>
+                            <label for="paspay_callback_token" class="block text-sm font-medium text-gray-700 mb-1">Webhook Callback Token</label>
+                            <input type="text" id="paspay_callback_token" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Digunakan untuk memverifikasi callback dari Paspay.</p>
+                        </div>
+
+                        <div>
+                            <label for="paspay_channel_ids" class="block text-sm font-medium text-gray-700 mb-1">Payment Channel IDs (Dipisahkan koma)</label>
+                            <input type="text" id="paspay_channel_ids" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="3, 4, 10">
+                            <p class="text-xs text-gray-500 mt-1">Contoh: `3, 4` (VA dan QRIS).</p>
+                        </div>
+
+                        <div class="flex justify-end items-center space-x-3 pt-4">
+                            <p id="form-message" class="text-sm"></p>
+                            <button type="submit" id="save-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan Pengaturan</button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const API_SETTINGS = '/api/admin/settings'; // Nanti akan dibuat endpoint ini
+        const PASPAY_SETTINGS_KEY = 'paspay_config';
+
+        const form = document.getElementById('paspay-settings-form');
+        const apiKeyField = document.getElementById('paspay_api_key');
+        const projectIdField = document.getElementById('paspay_project_id');
+        const callbackTokenField = document.getElementById('paspay_callback_token');
+        const channelIdsField = document.getElementById('paspay_channel_ids');
+        const messageEl = document.getElementById('form-message');
+        const saveBtn = document.getElementById('save-btn');
+
+        // Helper: Tampilkan pesan
+        function showMessage(text, type = 'info', timeout = 3000) {
+            messageEl.textContent = text;
+            messageEl.className = 'text-sm ' +
+                (type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-700'));
+            if (timeout > 0) setTimeout(() => messageEl.textContent = '', timeout);
+        }
+        
+        // Helper: Parse JSON
+        async function parseJsonResponse(res) {
+            const text = await res.text();
+            try { return { ok: res.ok, status: res.status, json: JSON.parse(text), raw: text }; }
+            catch { return { ok: res.ok, status: res.status, json: null, raw: text }; }
+        }
+
+        // 1. READ: Muat Pengaturan Paspay
+        async function loadSettings() {
+            try {
+                // Endpoint akan dibuat untuk GET /api/admin/settings?key=paspay_config
+                const res = await fetch(`${API_SETTINGS}?key=${PASPAY_SETTINGS_KEY}`, { credentials: 'include' });
+                const parsed = await parseJsonResponse(res);
+
+                if (res.status === 401 || res.status === 403) {
+                    alert('Akses terlarang atau session habis. Silakan login ulang.');
+                    window.location.href = '/admin/login.html';
+                    return;
+                }
+                
+                if (res.ok && parsed.json && parsed.json.value) {
+                    const config = JSON.parse(parsed.json.value);
+                    apiKeyField.value = config.api_key || '';
+                    projectIdField.value = config.project_id || '';
+                    callbackTokenField.value = config.callback_token || '';
+                    channelIdsField.value = Array.isArray(config.channel_ids) ? config.channel_ids.join(', ') : config.channel_ids || '';
+                    showMessage('Pengaturan Paspay berhasil dimuat.', 'info', 3000);
+                } else {
+                    // Jika tidak ada di DB, biarkan field default
+                    showMessage('Pengaturan Paspay belum tersimpan.', 'info', 3000);
+                }
+            } catch (err) {
+                console.error('Error loading settings:', err);
+                showMessage('Gagal memuat pengaturan. Cek koneksi API.', 'error', 6000);
+            }
+        }
+
+        // 2. CREATE/UPDATE: Simpan Pengaturan Paspay
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            saveBtn.disabled = true;
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = 'Menyimpan...';
+
+            const configData = {
+                api_key: apiKeyField.value.trim(),
+                project_id: projectIdField.value ? parseInt(projectIdField.value, 10) : 0,
+                callback_token: callbackTokenField.value.trim(),
+                // Ubah string channel ID menjadi array integer
+                channel_ids: channelIdsField.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0)
+            };
+
+            const dataToSend = {
+                key: PASPAY_SETTINGS_KEY,
+                value: JSON.stringify(configData)
+            };
+
+            try {
+                // Endpoint akan dibuat untuk POST /api/admin/settings (Insert/Update)
+                const res = await fetch(API_SETTINGS, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToSend)
+                });
+                
+                const parsed = await parseJsonResponse(res);
+
+                if (!res.ok) {
+                    const errMsg = parsed.json?.error || 'Gagal menyimpan data.';
+                    showMessage(`Gagal: ${errMsg}`, 'error', 6000);
+                    return;
+                }
+
+                showMessage('Pengaturan Paspay berhasil disimpan!', 'success', 3000);
+                
+            } catch (err) {
+                console.error('Error saving settings:', err);
+                showMessage('Terjadi kesalahan koneksi sistem.', 'error', 6000);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>
