@@ -78,7 +78,7 @@ app.onError((err, c) => {
 });
 
 /* -------------------------
-    Auth middlewares (DIUBAH untuk kolom user baru)
+    Auth middlewares
     ------------------------- */
 const authMiddleware = async (c, next) => {
     const env = c.env;
@@ -121,10 +121,8 @@ const adminMiddleware = async (c, next) => {
 
 
 /* -------------------------
-    Public: Store handlers (DIUBAH untuk rating & is_featured)
+    Public: Store handlers
     ------------------------- */
-
-// BARU: Handler untuk mengambil banner yang aktif
 async function storeBannersHandler(c) {
     const env = c.env;
     if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
@@ -135,7 +133,6 @@ async function storeBannersHandler(c) {
         ).all();
         return c.json(normalizeAllResult(raw));
     } catch (e) {
-        // Asumsi tabel belum ada jika terjadi error, kembalikan array kosong
         if (e.message.includes('no such table')) return c.json([]);
         console.error('[STORE BANNERS CRASH]', e.message, e.stack);
         return c.json({ error: 'Internal Server Error' }, 500);
@@ -147,7 +144,6 @@ async function storeProductsHandler(c) {
     if (!env.DB) return c.json({ error: 'DB binding not found' }, 500);
     try {
         const hasIsActive = await tableHasColumn(env.DB, 'products', 'is_active');
-        // PENTING: Menambahkan p.rating, p.review_count, dan p.is_featured ke SELECT
         const sql = hasIsActive
             ?
             `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.rating, p.review_count, p.is_featured
@@ -180,7 +176,6 @@ async function storeProductByIdHandler(c) {
     const env = c.env;
     const id = c.req.param('id');
     try {
-        // PENTING: Menambahkan p.rating, p.review_count, dan p.is_featured ke SELECT
         const p = await env.DB.prepare(
             `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type, p.rating, p.review_count, p.is_featured
              FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -214,7 +209,6 @@ async function storeProductBySlugHandler(c) {
     const env = c.env;
     const slug = c.req.param('slug');
     try {
-        // PENTING: Menambahkan p.rating, p.review_count, dan p.is_featured ke SELECT
         const p = await env.DB.prepare(
             `SELECT p.id, p.slug, p.name, p.price, p.description, p.image_url, c.name as category_name, p.digital_content, p.product_type, p.rating, p.review_count, p.is_featured
              FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -260,15 +254,11 @@ async function loginHandler(c) {
     }
     
     if (!body || !body.email || !body.password) {
-        console.log('[LOGIN HANDLER] GAGAL validasi manual: Email atau password kosong.');
         return c.json({ error: 'Email dan password wajib diisi' }, 400);
     }
-    console.log('[LOGIN HANDLER] 2. Validasi manual berhasil.');
 
     try {
-        console.log(`[LOGIN HANDLER] 3. Mencoba query ke DB untuk email: ${body.email}`);
         if (!env.DB) {
-            console.error('[LOGIN HANDLER] CRASH: env.DB tidak terdefinisi!');
             throw new Error('Database binding (DB) tidak ditemukan.');
         }
         
@@ -282,10 +272,8 @@ async function loginHandler(c) {
         ).bind(body.email).first();
         
         if (!user) {
-            console.log('[LOGIN HANDLER] 4. User tidak ditemukan di DB.');
             return c.json({ error: 'Email atau password salah' }, 401);
         }
-        console.log(`[LOGIN HANDLER] 4. User ditemukan: ${user.email} (Role: ${user.role})`);
 
         let verified = false;
         try {
@@ -304,35 +292,25 @@ async function loginHandler(c) {
         }
 
         if (!verified) {
-            console.log('[LOGIN HANDLER] 5. Verifikasi password GAGAL.');
             return c.json({ error: 'Email atau password salah' }, 401);
         }
-        console.log('[LOGIN HANDLER] 5. Verifikasi password berhasil.');
 
         if (user.status !== 'active') {
-            console.log(`[LOGIN HANDLER] 6. Akun tidak aktif (Status: ${user.status}).`);
             return c.json({ error: 'Akun tidak aktif' }, 403);
         }
         
-        console.log('[LOGIN HANDLER] 6. Akun aktif. Mencoba membuat token JWT...');
         if (!env.JWT_SECRET) {
-            console.error('[LOGIN HANDLER] CRASH: env.JWT_SECRET tidak terdefinisi!');
             throw new Error('JWT_SECRET environment variable tidak di-set.');
         }
         
         const payload = { sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 };
         const token = await sign(payload, env.JWT_SECRET, 'HS256');
-        console.log('[LOGIN HANDLER] 7. Token JWT berhasil dibuat.');
 
-        // PERBAIKAN DARI ERROR SEBELUMNYA
         const isDev = (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') ||
             (c.req.header('host') || '').includes('localhost');
-        console.log('[LOGIN HANDLER] 8. Pengecekan isDev selesai.');
 
-        console.log('[LOGIN HANDLER] 9. Mencoba mengatur cookie.');
         setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isDev, sameSite: 'Lax', maxAge: 60 * 60 * 24 });
         
-        console.log('[LOGIN HANDLER] SUKSES. Mengirim respons.');
         return c.json({ success: true, message: 'Login berhasil' });
         
     } catch (e) {
@@ -340,7 +318,6 @@ async function loginHandler(c) {
         console.error('[LOGIN HANDLER CRASH]');
         console.error('Pesan Error:', e.message);
         console.error('Stack Trace:', e.stack);
-        console.error('======================================');
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 }
@@ -443,6 +420,66 @@ async function updateProfileHandler(c) {
         console.error('[UPDATE PROFILE CRASH]', e.message, e.stack);
         return c.json({ error: 'Internal Server Error saat pembaruan profil' }, 500);
     }
+}
+
+// BARU: Handler untuk mengambil daftar orders berdasarkan member_id
+async function memberOrdersHandler(c) {
+    const env = c.env;
+    const user = c.get('user');
+    const memberId = user.id;
+
+    try {
+        // NOTE: Menggunakan LEFT JOIN untuk mengambil nama produk
+        const raw = await env.DB.prepare(
+            `SELECT o.id, o.status, o.total_amount, o.created_at, p.name as product_name
+             FROM orders o
+             LEFT JOIN products p ON o.product_id = p.id
+             WHERE o.user_id = ?
+             ORDER BY o.created_at DESC`
+        ).bind(memberId).all();
+
+        return c.json(normalizeAllResult(raw));
+    } catch (e) {
+        console.error('[MEMBER ORDERS CRASH]', e.message, e.stack);
+        return c.json({ error: 'Gagal memuat daftar pesanan' }, 500);
+    }
+}
+
+// BARU: Handler untuk mengambil dan menyimpan pengaturan admin (Paspay)
+async function adminSettingsHandler(c) {
+    const env = c.env;
+    
+    // Pastikan tabel settings ada
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)').run().catch(() => {});
+
+    if (c.req.method === 'GET') {
+        const keyQuery = c.req.query('key');
+        if (!keyQuery) return c.json({ error: 'Query parameter key wajib diisi' }, 400);
+
+        // READ
+        try {
+            const raw = await env.DB.prepare('SELECT value FROM settings WHERE key = ? LIMIT 1').bind(keyQuery).first();
+            if (!raw) return c.json({ error: 'Pengaturan tidak ditemukan' }, 404);
+            return c.json(raw);
+        } catch (e) {
+            return c.json({ error: 'Gagal membaca pengaturan' }, 500);
+        }
+    } else if (c.req.method === 'POST') {
+        const { key, value } = await c.req.json().catch(() => ({ key: null, value: null }));
+        
+        if (!key || !value) return c.json({ error: 'Body properties key dan value wajib diisi' }, 400);
+
+        // CREATE/UPDATE (Upsert)
+        try {
+            // Menggunakan REPLACE INTO untuk membuat atau memperbarui
+            await env.DB.prepare('REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, value).run();
+            return c.json({ success: true, message: 'Pengaturan berhasil disimpan' });
+        } catch (e) {
+            return c.json({ error: 'Gagal menyimpan pengaturan' }, 500);
+        }
+    }
+    
+    return c.json({ error: 'Metode tidak valid' }, 405);
 }
 
 
@@ -816,6 +853,7 @@ api.post('/logout', logoutHandler);
 api.post('/member/register', registerHandler); // BARU: Register
 api.get('/member/profile', authMiddleware, profileHandler); // READ Profil Member
 api.put('/member/profile/:id', authMiddleware, updateProfileHandler); // UPDATE Profil Member
+api.get('/member/orders', authMiddleware, memberOrdersHandler); // BARU: Orders Member
 
 // Checkout & webhook
 api.post('/store/checkout', storeCheckoutHandler);
@@ -851,6 +889,10 @@ api.delete('/admin/gallery/:imageId', authMiddleware, adminMiddleware, adminDele
 // Admin orders & users
 api.get('/admin/orders', authMiddleware, adminMiddleware, adminListOrders);
 api.get('/admin/users', authMiddleware, adminMiddleware, adminListUsers);
+// BARU: Admin Settings (Paspay Gateway)
+api.get('/admin/settings', authMiddleware, adminMiddleware, adminSettingsHandler); // READ
+api.post('/admin/settings', authMiddleware, adminMiddleware, adminSettingsHandler); // UPSERT
+
 // Debug
 api.get('/debug/db', debugDbHandler);
 
@@ -873,28 +915,40 @@ app.get('/product/:slug', serveStatic({
     path: 'product.html' // Shell khusus untuk detail produk
 }));
 
-// BARU: Rute login member
+// Rute login member
 app.get('/member/login.html', serveStatic({
     root: './public',
     path: 'member/login.html'
 }));
 
-// BARU: Rute member area memuat shell member dashboard
+// Rute member area memuat shell member dashboard
 app.get('/member/dashboard.html', serveStatic({ 
     root: './public',
     path: 'member/dashboard.html'
 }));
 
-// BARU: Rute pendaftaran memuat shell register
+// Rute pendaftaran memuat shell register
 app.get('/member/register.html', serveStatic({ 
     root: './public',
     path: 'member/register.html'
 }));
 
-// BARU: Rute profil member
+// Rute orders member
+app.get('/member/orders.html', serveStatic({
+    root: './public',
+    path: 'member/orders.html'
+}));
+
+// Rute profil member
 app.get('/member/profile.html', serveStatic({
     root: './public',
     path: 'member/profile.html'
+}));
+
+// Rute admin settings paspay
+app.get('/admin/paspay-settings.html', serveStatic({
+    root: './public',
+    path: 'admin/paspay-settings.html'
 }));
 
 
