@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil & Alamat Member</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#06b6d4', 600: '#0891b2', 800: '#075985' },
+                        accent: '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <header class="bg-white shadow-lg rounded-xl p-4 mb-8 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-primary-600">Member Area</h1>
+            <a href="/" class="text-sm text-gray-500 hover:text-primary-600">
+                <i class="fas fa-store mr-1"></i> Kembali ke Toko
+            </a>
+        </header>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6">
+            <!-- Sidebar Navigasi Member -->
+            <aside class="bg-white p-6 rounded-lg shadow-md h-fit">
+                <div class="flex items-center mb-6 pb-4 border-b">
+                    <div class="bg-primary-100 text-primary-800 w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg mr-3">
+                        <span id="user-initial">M</span>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800" id="user-name">Memuat Nama...</p>
+                        <p class="text-xs text-gray-500" id="user-role">Member</p>
+                    </div>
+                </div>
+
+                <nav class="space-y-1">
+                    <a href="/member/dashboard.html" class="flex items-center py-2 px-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-tachometer-alt w-5 mr-3"></i> Dashboard
+                    </a>
+                    <a href="/member/orders.html" class="flex items-center py-2 px-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-shopping-basket w-5 mr-3"></i> Pesanan Saya
+                    </a>
+                    <a href="/member/profile.html" class="flex items-center py-2 px-3 rounded-lg bg-primary-100 text-primary-800 font-medium">
+                        <i class="fas fa-user-circle w-5 mr-3"></i> Profil & Alamat
+                    </a>
+                    <button id="logout-btn" class="flex items-center w-full text-left py-2 px-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4 border-t pt-3">
+                        <i class="fas fa-sign-out-alt w-5 mr-3"></i> Logout
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Konten Utama Profil -->
+            <main class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Edit Profil & Informasi Kontak</h2>
+                    
+                    <form id="profile-form" class="space-y-6">
+                        
+                        <!-- Info Dasar (Non-Editable Email) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama Lengkap</label>
+                                <input type="text" id="name" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Email (Tidak Dapat Diubah)</label>
+                                <input type="email" id="email" disabled class="w-full px-3 py-2 mt-1 bg-gray-100 border border-gray-300 rounded-lg" />
+                            </div>
+                        </div>
+
+                        <!-- Kontak dan Gender -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nomor Telepon</label>
+                                <input type="tel" id="phone" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" placeholder="08xx-xxxx-xxxx" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jenis Kelamin</label>
+                                <select id="gender" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg">
+                                    <option value="">-- Pilih --</option>
+                                    <option value="L">Laki-laki</option>
+                                    <option value="P">Perempuan</option>
+                                    <option value="X">Lainnya</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Kode Pos</label>
+                                <input type="text" id="zip_code" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" />
+                            </div>
+                        </div>
+                        
+                        <!-- Alamat Baris 1 & 2 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Alamat (Baris 1)</label>
+                            <input type="text" id="address_line_1" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" placeholder="Nama Jalan, Nomor Rumah" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Alamat (Baris 2, Opsional)</label>
+                            <input type="text" id="address_line_2" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" placeholder="Blok, RT/RW, Patokan" />
+                        </div>
+
+                        <!-- Kota, Provinsi, Negara -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Kota</label>
+                                <input type="text" id="city" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Provinsi</label>
+                                <input type="text" id="province" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Negara</label>
+                                <input type="text" id="country" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg" value="Indonesia" />
+                            </div>
+                        </div>
+
+                        <!-- Tombol Submit -->
+                        <div class="pt-4 flex justify-end items-center space-x-3">
+                            <p id="form-message" class="text-sm"></p>
+                            <button type="submit" id="save-btn" class="py-2 px-6 bg-accent text-white font-semibold rounded-lg hover:bg-green-600 transition">
+                                Simpan Perubahan
+                            </button>
+                        </div>
+                    </form>
+
+                    <p id="loading-status" class="text-center mt-6 text-gray-500">Memuat data profil...</p>
+
+                </div>
+            </main>
+        </div>
+    </div>
+<script>
+    const API_PROFILE = '/api/member/profile'; 
+    const API_LOGOUT = '/api/logout';
+    
+    // Elemen Sidebar
+    const userNameEl = document.getElementById('user-name');
+    const userInitialEl = document.getElementById('user-initial');
+    const userRoleEl = document.getElementById('user-role');
+
+    // Elemen Form
+    const profileForm = document.getElementById('profile-form');
+    const nameField = document.getElementById('name');
+    const emailField = document.getElementById('email');
+    const phoneField = document.getElementById('phone');
+    const genderField = document.getElementById('gender');
+    const address1Field = document.getElementById('address_line_1');
+    const address2Field = document.getElementById('address_line_2');
+    const cityField = document.getElementById('city');
+    const provinceField = document.getElementById('province');
+    const countryField = document.getElementById('country');
+    const zipCodeField = document.getElementById('zip_code');
+    const saveBtn = document.getElementById('save-btn');
+    const messageEl = document.getElementById('form-message');
+    const loadingStatus = document.getElementById('loading-status');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // State untuk menyimpan ID user (diambil dari API)
+    let currentUserId = null;
+
+
+    // Helper: Tampilkan pesan
+    function showMessage(text, type = 'info', timeout = 3000) {
+        messageEl.textContent = text;
+        messageEl.className = 'text-sm ' +
+            (type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-accent' : 'text-gray-700'));
+        if (timeout > 0) setTimeout(() => messageEl.textContent = '', timeout);
+    }
+
+    // Helper: Parse JSON
+    async function parseJsonResponse(res) {
+        const txt = await res.text();
+        try { return { ok: res.ok, status: res.status, json: JSON.parse(txt), raw: txt }; }
+        catch { return { ok: res.ok, status: res.status, json: null, raw: txt }; }
+    }
+    
+    // Helper: Redirect ke login jika tidak terotentikasi
+    function redirectToLogin() {
+        window.location.href = '/member/login.html'; // Menggunakan member login yang baru
+    }
+
+    // 1. Ambil data profil dari API
+    async function loadProfileData() {
+        loadingStatus.classList.remove('hidden');
+        profileForm.classList.add('hidden');
+        
+        try {
+            const res = await fetch(API_PROFILE, { credentials: 'include' }); 
+            const parsed = await parseJsonResponse(res);
+            
+            if (res.status === 401 || res.status === 403) {
+                return redirectToLogin();
+            }
+
+            if (!res.ok || !parsed.json) {
+                loadingStatus.textContent = 'Gagal memuat data profil. Silakan coba lagi.';
+                return;
+            }
+
+            const user = parsed.json;
+            currentUserId = user.id;
+
+            // 1. Isi Sidebar
+            userNameEl.textContent = user.name || 'Member';
+            userInitialEl.textContent = (user.name || 'M')[0].toUpperCase();
+            userRoleEl.textContent = user.role || 'member';
+
+            // 2. Isi Form
+            nameField.value = user.name || '';
+            emailField.value = user.email || '';
+            phoneField.value = user.phone || '';
+            genderField.value = user.gender || '';
+            address1Field.value = user.address_line_1 || '';
+            address2Field.value = user.address_line_2 || '';
+            cityField.value = user.city || '';
+            provinceField.value = user.province || '';
+            countryField.value = user.country || 'Indonesia';
+            zipCodeField.value = user.zip_code || '';
+
+            loadingStatus.classList.add('hidden');
+            profileForm.classList.remove('hidden');
+
+        } catch (err) {
+            console.error('Fetch profile data error:', err);
+            loadingStatus.textContent = 'Terjadi kesalahan sistem saat memuat profil.';
+        }
+    }
+
+    // 2. Submit Form untuk Update Profil
+    profileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUserId) {
+            showMessage('ID pengguna tidak ditemukan. Silakan refresh.', 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Menyimpan...';
+
+        const updatedData = {
+            id: currentUserId, // Diperlukan untuk endpoint backend
+            name: nameField.value.trim(),
+            phone: phoneField.value.trim(),
+            gender: genderField.value,
+            address_line_1: address1Field.value.trim(),
+            address_line_2: address2Field.value.trim(),
+            city: cityField.value.trim(),
+            province: provinceField.value.trim(),
+            country: countryField.value.trim(),
+            zip_code: zipCodeField.value.trim(),
+        };
+
+        try {
+            // Menggunakan endpoint PUT khusus update profil
+            const res = await fetch(`${API_PROFILE}/${currentUserId}`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            });
+
+            const parsed = await parseJsonResponse(res);
+
+            if (!res.ok) {
+                const errMsg = parsed.json?.error || 'Gagal menyimpan data.';
+                showMessage(`Gagal: ${errMsg}`, 'error', 6000);
+                return;
+            }
+
+            // Sukses: Muat ulang data untuk menyinkronkan sidebar/UI
+            await loadProfileData();
+            showMessage('Profil berhasil diperbarui!', 'success', 3000);
+
+        } catch (err) {
+            console.error('Update profile error:', err);
+            showMessage('Terjadi kesalahan koneksi sistem.', 'error', 6000);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    });
+
+
+    // 3. Event Logout
+    logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            await fetch(API_LOGOUT, { method: 'POST', credentials: 'include' });
+        } catch (err) {
+            console.warn('Logout error, forcing redirect:', err);
+        }
+        redirectToLogin();
+    });
+
+    // Load data saat halaman dimuat
+    loadProfileData();
+</script>
+</body>
+</html>
