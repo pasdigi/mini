@@ -350,6 +350,102 @@ async function logoutHandler(c) {
     return c.json({ success: true, message: 'Logout berhasil' });
 }
 
+// BARU: Handler Registrasi Member
+async function registerHandler(c) {
+    const env = c.env;
+    const body = await c.req.json().catch(() => null);
+
+    if (!body || !body.name || !body.email || !body.password) {
+        return c.json({ error: 'Nama, email, dan password wajib diisi' }, 400);
+    }
+
+    // 1. Cek duplikasi email
+    const existingUser = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(body.email).first();
+    if (existingUser) {
+        return c.json({ error: 'Email sudah terdaftar' }, 409);
+    }
+
+    // 2. Hash Password (Simple Hash/Mock)
+    let passwordHash = body.password; // Menggunakan plain text untuk mock dev
+    
+    // 3. Masukkan ke DB
+    try {
+        const { meta } = await env.DB.prepare(
+            `INSERT INTO users (email, password_hash, name, role, status, created_at)
+             VALUES (?, ?, ?, 'member', 'active', ?)`
+        ).bind(body.email, passwordHash, body.name, Math.floor(Date.now() / 1000)).run();
+
+        return c.json({ success: true, user_id: meta.last_row_id }, 201);
+    } catch (e) {
+        console.error('[REGISTER CRASH]', e.message, e.stack);
+        return c.json({ error: 'Gagal mendaftarkan pengguna' }, 500);
+    }
+}
+
+// BARU: Handler Profil Member (READ)
+async function profileHandler(c) {
+    // Data user sudah di-set oleh authMiddleware
+    const user = c.get('user');
+    // Hapus data sensitif seperti password_hash sebelum dikirim ke frontend
+    const { password_hash, auth_token, refresh_token, ...safeUser } = user;
+    return c.json(safeUser);
+}
+
+// BARU: Handler Profil Member (UPDATE)
+async function updateProfileHandler(c) {
+    const env = c.env;
+    const userIdFromToken = c.get('user').id;
+    const userIdFromParams = c.req.param('id');
+    const body = await c.req.json().catch(() => null);
+
+    // Keamanan: Pastikan ID dari token sesuai dengan ID yang diminta di params
+    if (String(userIdFromToken) !== String(userIdFromParams)) {
+        return c.json({ error: 'Akses ditolak: ID pengguna tidak cocok' }, 403);
+    }
+
+    if (!body || !body.name) {
+        return c.json({ error: 'Nama wajib diisi' }, 400);
+    }
+
+    try {
+        const { results } = await env.DB.prepare(
+            `UPDATE users SET 
+                name = ?, 
+                phone = ?, 
+                gender = ?, 
+                address_line_1 = ?, 
+                address_line_2 = ?, 
+                city = ?, 
+                province = ?, 
+                country = ?, 
+                zip_code = ? 
+             WHERE id = ? RETURNING id`
+        ).bind(
+            body.name || null, 
+            body.phone || null, 
+            body.gender || null, 
+            body.address_line_1 || null, 
+            body.address_line_2 || null, 
+            body.city || null, 
+            body.province || null, 
+            body.country || null, 
+            body.zip_code || null,
+            userIdFromToken
+        ).all();
+        
+        if (results.length === 0) {
+            return c.json({ error: 'Gagal memperbarui data pengguna' }, 404);
+        }
+
+        return c.json({ success: true, message: 'Profil berhasil diperbarui' });
+
+    } catch (e) {
+        console.error('[UPDATE PROFILE CRASH]', e.message, e.stack);
+        return c.json({ error: 'Internal Server Error saat pembaruan profil' }, 500);
+    }
+}
+
+
 /* -------------------------
     Admin: categories (Validasi manual TANPA ZOD)
     ------------------------- */
@@ -504,7 +600,7 @@ async function adminUpdateProduct(c) {
     const env = c.env;
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => null);
-    
+
     if (!body || !body.name || typeof body.price !== 'number' || !body.product_type) {
         return c.json({ error: 'Nama, harga (angka), dan tipe produk wajib diisi' }, 400);
     }
@@ -717,6 +813,10 @@ api.get('/store/banners', storeBannersHandler);
 // Auth
 api.post('/login', loginHandler);
 api.post('/logout', logoutHandler);
+api.post('/member/register', registerHandler); // BARU: Register
+api.get('/member/profile', authMiddleware, profileHandler); // READ Profil Member
+api.put('/member/profile/:id', authMiddleware, updateProfileHandler); // UPDATE Profil Member
+
 // Checkout & webhook
 api.post('/store/checkout', storeCheckoutHandler);
 api.post('/webhook/paspay', paspayWebhookHandler);
@@ -772,6 +872,31 @@ app.get('/product/:slug', serveStatic({
     root: './public',
     path: 'product.html' // Shell khusus untuk detail produk
 }));
+
+// BARU: Rute login member
+app.get('/member/login.html', serveStatic({
+    root: './public',
+    path: 'member/login.html'
+}));
+
+// BARU: Rute member area memuat shell member dashboard
+app.get('/member/dashboard.html', serveStatic({ 
+    root: './public',
+    path: 'member/dashboard.html'
+}));
+
+// BARU: Rute pendaftaran memuat shell register
+app.get('/member/register.html', serveStatic({ 
+    root: './public',
+    path: 'member/register.html'
+}));
+
+// BARU: Rute profil member
+app.get('/member/profile.html', serveStatic({
+    root: './public',
+    path: 'member/profile.html'
+}));
+
 
 // Rute dasar / (beranda) dan semua rute lain yang tidak terdefinisi (seperti /admin/login, /style.css)
 // memuat dari direktori statis /public, dengan fallback ke index.html untuk path root.
