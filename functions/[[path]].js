@@ -571,6 +571,52 @@ async function adminListUsers(c) {
 }
 
 /* -------------------------
+    Admin: banners CRUD (Validasi manual TANPA ZOD)
+    ------------------------- */
+async function adminListBanners(c) {
+    const env = c.env;
+    const raw = await env.DB.prepare('SELECT * FROM banners ORDER BY sort_order ASC').all();
+    return c.json(normalizeAllResult(raw));
+}
+
+async function adminCreateBanner(c) {
+    const env = c.env;
+    const body = await c.req.json().catch(() => null);
+    
+    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
+        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
+    }
+    
+    const { results } = await env.DB.prepare(
+        `INSERT INTO banners (banner_name, banner_description, banner_image_url, banner_link, is_active, sort_order) 
+         VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0).all();
+    return c.json(normalizeAllResult(results)[0], 201);
+}
+
+async function adminUpdateBanner(c) {
+    const env = c.env;
+    const id = c.req.param('id');
+    const body = await c.req.json().catch(() => null);
+
+    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
+        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
+    }
+    
+    const { results } = await env.DB.prepare(
+        `UPDATE banners SET banner_name = ?, banner_description = ?, banner_image_url = ?, banner_link = ?, is_active = ?, sort_order = ? 
+         WHERE id = ? RETURNING *`
+    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0, id).all();
+    return c.json(normalizeAllResult(results)[0]);
+}
+
+async function adminDeleteBanner(c) {
+    const env = c.env;
+    const id = c.req.param('id');
+    await env.DB.prepare('DELETE FROM banners WHERE id = ?').bind(id).run();
+    return c.json({ success: true, message: 'Banner dihapus' });
+}
+/* -------------------------
     Checkout & Webhook (Validasi manual TANPA ZOD)
     ------------------------- */
 async function storeCheckoutHandler(c) {
@@ -668,6 +714,12 @@ api.delete('/admin/stock/:stockId', authMiddleware, adminMiddleware, adminDelete
 api.get('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminListGallery);
 api.post('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminSyncGallery);
 api.delete('/admin/gallery/:imageId', authMiddleware, adminMiddleware, adminDeleteGallery);
+
+// Admin banners
+api.get('/admin/banners', authMiddleware, adminMiddleware, adminListBanners);
+api.post('/admin/banners', authMiddleware, adminMiddleware, adminCreateBanner);
+api.put('/admin/banners/:id', authMiddleware, adminMiddleware, adminUpdateBanner);
+api.delete('/admin/banners/:id', authMiddleware, adminMiddleware, adminDeleteBanner);
 
 // Admin orders & users
 api.get('/admin/orders', authMiddleware, adminMiddleware, adminListOrders);
