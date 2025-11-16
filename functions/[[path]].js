@@ -78,7 +78,7 @@ app.onError((err, c) => {
 });
 
 /* -------------------------
-    Auth middlewares (Tidak Berubah)
+    Auth middlewares (DIUBAH untuk kolom user baru)
     ------------------------- */
 const authMiddleware = async (c, next) => {
     const env = c.env;
@@ -86,7 +86,16 @@ const authMiddleware = async (c, next) => {
     if (!token) return c.json({ error: 'Tidak terotentikasi' }, 401);
     try {
         const payload = await verify(token, env.JWT_SECRET, 'HS256');
-        const user = await env.DB.prepare('SELECT id, email, role, status FROM users WHERE id = ?').bind(payload.sub).first();
+        
+        // MENGAMBIL SEMUA KOLOM USER BARU (TERMASUK UNTUK PENGEMBANGAN MASA DEPAN)
+        const user = await env.DB.prepare(
+            `SELECT 
+                id, email, name, role, status, created_at,
+                phone, gender, address_line_1, address_line_2, city, province, country, zip_code,
+                auth_token, refresh_token, telegram_user_id, google_user_id
+             FROM users WHERE id = ?`
+        ).bind(payload.sub).first();
+        
         if (!user) {
             setCookie(c, 'auth_token', '', { path: '/', maxAge: 0 });
             return c.json({ error: 'User tidak ditemukan' }, 401);
@@ -158,7 +167,7 @@ async function storeProductsHandler(c) {
             category_name: r.category_name ?? null,
             rating: r.rating ? Number(r.rating) : 4.5,
             review_count: r.review_count ? Number(r.review_count) : 29,
-            is_featured: r.is_featured === 1 || r.is_featured === '1' // Tambahkan is_featured
+            is_featured: r.is_featured === 1 || r.is_featured === '1'
         }));
         return c.json(normalized);
     } catch (e) {
@@ -192,7 +201,7 @@ async function storeProductByIdHandler(c) {
             product_type: p.product_type,
             rating: p.rating ? Number(p.rating) : 4.5,
             review_count: p.review_count ? Number(p.review_count) : 29,
-            is_featured: p.is_featured === 1 || p.is_featured === '1', // Tambahkan is_featured
+            is_featured: p.is_featured === 1 || p.is_featured === '1',
             gallery
         });
     } catch (e) {
@@ -226,7 +235,7 @@ async function storeProductBySlugHandler(c) {
             product_type: p.product_type,
             rating: p.rating ? Number(p.rating) : 4.5,
             review_count: p.review_count ? Number(p.review_count) : 29,
-            is_featured: p.is_featured === 1 || p.is_featured === '1', // Tambahkan is_featured
+            is_featured: p.is_featured === 1 || p.is_featured === '1',
             gallery
         });
     } catch (e) {
@@ -263,7 +272,15 @@ async function loginHandler(c) {
             throw new Error('Database binding (DB) tidak ditemukan.');
         }
         
-        const user = await env.DB.prepare('SELECT id, password_hash, role, status FROM users WHERE email = ?').bind(body.email).first();
+        // MENGAMBIL SEMUA KOLOM USER BARU UNTUK PROSES AUTH
+        const user = await env.DB.prepare(
+            `SELECT 
+                id, password_hash, role, status, 
+                phone, gender, address_line_1, address_line_2, city, province, country, zip_code,
+                auth_token, refresh_token, telegram_user_id, google_user_id
+             FROM users WHERE email = ?`
+        ).bind(body.email).first();
+        
         if (!user) {
             console.log('[LOGIN HANDLER] 4. User tidak ditemukan di DB.');
             return c.json({ error: 'Email atau password salah' }, 401);
@@ -375,7 +392,55 @@ async function adminDeleteCategory(c) {
 }
 
 /* -------------------------
-    Admin: products CRUD (Validasi manual TANPA ZOD)
+    Admin: banners CRUD
+    ------------------------- */
+async function adminListBanners(c) {
+    const env = c.env;
+    const raw = await env.DB.prepare('SELECT * FROM banners ORDER BY sort_order ASC').all();
+    return c.json(normalizeAllResult(raw));
+}
+
+async function adminCreateBanner(c) {
+    const env = c.env;
+    const body = await c.req.json().catch(() => null);
+    
+    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
+        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
+    }
+    
+    const { results } = await env.DB.prepare(
+        `INSERT INTO banners (banner_name, banner_description, banner_image_url, banner_link, is_active, sort_order) 
+         VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0).all();
+    return c.json(normalizeAllResult(results)[0], 201);
+}
+
+async function adminUpdateBanner(c) {
+    const env = c.env;
+    const id = c.req.param('id');
+    const body = await c.req.json().catch(() => null);
+
+    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
+        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
+    }
+    
+    const { results } = await env.DB.prepare(
+        `UPDATE banners SET banner_name = ?, banner_description = ?, banner_image_url = ?, banner_link = ?, is_active = ?, sort_order = ? 
+         WHERE id = ? RETURNING *`
+    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0, id).all();
+    return c.json(normalizeAllResult(results)[0]);
+}
+
+async function adminDeleteBanner(c) {
+    const env = c.env;
+    const id = c.req.param('id');
+    await env.DB.prepare('DELETE FROM banners WHERE id = ?').bind(id).run();
+    return c.json({ success: true, message: 'Banner dihapus' });
+}
+
+
+/* -------------------------
+    Admin: products CRUD (DIUBAH untuk is_featured)
     ------------------------- */
 async function adminListProducts(c) {
     const env = c.env;
@@ -550,7 +615,7 @@ async function adminDeleteGallery(c) {
 }
 
 /* -------------------------
-    Admin: orders & users (Tidak Berubah)
+    Admin: orders & users (DIUBAH untuk kolom user baru)
     ------------------------- */
 async function adminListOrders(c) {
     const env = c.env;
@@ -566,56 +631,17 @@ async function adminListOrders(c) {
 
 async function adminListUsers(c) {
     const env = c.env;
-    const raw = await env.DB.prepare('SELECT id, email, name, role, status, created_at FROM users ORDER BY created_at DESC').all();
+    // MENGAMBIL SEMUA KOLOM USER BARU
+    const raw = await env.DB.prepare(
+        `SELECT 
+            id, email, name, role, status, created_at,
+            phone, gender, address_line_1, address_line_2, city, province, country, zip_code,
+            telegram_user_id, google_user_id 
+        FROM users ORDER BY created_at DESC`
+    ).all();
     return c.json(normalizeAllResult(raw));
 }
 
-/* -------------------------
-    Admin: banners CRUD (Validasi manual TANPA ZOD)
-    ------------------------- */
-async function adminListBanners(c) {
-    const env = c.env;
-    const raw = await env.DB.prepare('SELECT * FROM banners ORDER BY sort_order ASC').all();
-    return c.json(normalizeAllResult(raw));
-}
-
-async function adminCreateBanner(c) {
-    const env = c.env;
-    const body = await c.req.json().catch(() => null);
-    
-    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
-        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
-    }
-    
-    const { results } = await env.DB.prepare(
-        `INSERT INTO banners (banner_name, banner_description, banner_image_url, banner_link, is_active, sort_order) 
-         VALUES (?, ?, ?, ?, ?, ?)`
-    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0).all();
-    return c.json(normalizeAllResult(results)[0], 201);
-}
-
-async function adminUpdateBanner(c) {
-    const env = c.env;
-    const id = c.req.param('id');
-    const body = await c.req.json().catch(() => null);
-
-    if (!body || !body.banner_name || !body.banner_image_url || !body.banner_link) {
-        return c.json({ error: 'Nama, URL Gambar, dan Link Tujuan wajib diisi' }, 400);
-    }
-    
-    const { results } = await env.DB.prepare(
-        `UPDATE banners SET banner_name = ?, banner_description = ?, banner_image_url = ?, banner_link = ?, is_active = ?, sort_order = ? 
-         WHERE id = ? RETURNING *`
-    ).bind(body.banner_name, body.banner_description || null, body.banner_image_url, body.banner_link, body.is_active ? 1 : 0, body.sort_order || 0, id).all();
-    return c.json(normalizeAllResult(results)[0]);
-}
-
-async function adminDeleteBanner(c) {
-    const env = c.env;
-    const id = c.req.param('id');
-    await env.DB.prepare('DELETE FROM banners WHERE id = ?').bind(id).run();
-    return c.json({ success: true, message: 'Banner dihapus' });
-}
 /* -------------------------
     Checkout & Webhook (Validasi manual TANPA ZOD)
     ------------------------- */
@@ -686,7 +712,7 @@ async function debugDbHandler(c) {
 api.get('/store/products', storeProductsHandler);
 api.get('/store/products/:id', storeProductByIdHandler);
 api.get('/store/products/slug/:slug', storeProductBySlugHandler);
-api.get('/store/banners', storeBannersHandler); // BARU: Endpoint Banner
+api.get('/store/banners', storeBannersHandler);
 
 // Auth
 api.post('/login', loginHandler);
@@ -700,6 +726,13 @@ api.get('/admin/categories', authMiddleware, adminMiddleware, adminListCategorie
 api.post('/admin/categories', authMiddleware, adminMiddleware, adminCreateCategory);
 api.put('/admin/categories/:id', authMiddleware, adminMiddleware, adminUpdateCategory);
 api.delete('/admin/categories/:id', authMiddleware, adminMiddleware, adminDeleteCategory);
+
+// Admin banners
+api.get('/admin/banners', authMiddleware, adminMiddleware, adminListBanners);
+api.post('/admin/banners', authMiddleware, adminMiddleware, adminCreateBanner);
+api.put('/admin/banners/:id', authMiddleware, adminMiddleware, adminUpdateBanner);
+api.delete('/admin/banners/:id', authMiddleware, adminMiddleware, adminDeleteBanner);
+
 // Admin products
 api.get('/admin/products', authMiddleware, adminMiddleware, adminListProducts);
 api.get('/admin/products/:id', authMiddleware, adminMiddleware, adminGetProduct);
@@ -714,12 +747,6 @@ api.delete('/admin/stock/:stockId', authMiddleware, adminMiddleware, adminDelete
 api.get('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminListGallery);
 api.post('/admin/products/:id/gallery', authMiddleware, adminMiddleware, adminSyncGallery);
 api.delete('/admin/gallery/:imageId', authMiddleware, adminMiddleware, adminDeleteGallery);
-
-// Admin banners
-api.get('/admin/banners', authMiddleware, adminMiddleware, adminListBanners);
-api.post('/admin/banners', authMiddleware, adminMiddleware, adminCreateBanner);
-api.put('/admin/banners/:id', authMiddleware, adminMiddleware, adminUpdateBanner);
-api.delete('/admin/banners/:id', authMiddleware, adminMiddleware, adminDeleteBanner);
 
 // Admin orders & users
 api.get('/admin/orders', authMiddleware, adminMiddleware, adminListOrders);
